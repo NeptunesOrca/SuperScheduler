@@ -118,6 +118,10 @@ class GoogleCalendarClient:
         event.source = "google"
         return event
 
+    def delete_event(self, event: ScheduleEvent) -> None:
+        service = self.service or self.connect()
+        service.events().delete(calendarId="primary", eventId=event.event_id).execute()
+
     @staticmethod
     def _parse_google_time(raw_value: str) -> datetime:
         if "T" not in raw_value:

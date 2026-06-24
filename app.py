@@ -116,6 +116,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         on_new_event: Callable[[date, int], None],
         on_edit_event: Callable[[ScheduleEvent], None],
         on_event_changed: Callable[[ScheduleEvent, datetime, datetime], bool],
+        on_delete_event: Callable[[ScheduleEvent], None],
     ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL | wx.HSCROLL)
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
@@ -125,6 +126,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.on_new_event = on_new_event
         self.on_edit_event = on_edit_event
         self.on_event_changed = on_event_changed
+        self.on_delete_event = on_delete_event
         self.header_height = 58
         self.time_width = 72
         self.row_height = 58
@@ -145,6 +147,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
         self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         self.Bind(wx.EVT_MOTION, self.on_motion)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
 
     def set_week(self, week_start: date) -> None:
         self.week_start = week_start
@@ -232,6 +235,36 @@ class ScheduleCanvas(wx.ScrolledWindow):
             self.Refresh()
         self.clear_drag_state()
         event.Skip()
+
+    def on_right_down(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        selected_event = self.hit_test_event(x, y)
+        if not selected_event:
+            event.Skip()
+            return
+
+        if self.HasCapture():
+            self.ReleaseMouse()
+        self.clear_drag_state()
+
+        day_index = self.day_index_from_x(x)
+        hour = min(23, max(0, self.minutes_from_y(y) // 60))
+        click_day = self.week_start + timedelta(days=day_index)
+
+        menu = wx.Menu()
+        edit_id = wx.Window.NewControlId()
+        new_id = wx.Window.NewControlId()
+        delete_id = wx.Window.NewControlId()
+        menu.Append(new_id, "New event")
+        menu.AppendSeparator()
+        menu.Append(edit_id, "Edit event")
+        menu.Append(delete_id, "Delete event")        
+
+        menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour), id=new_id)
+        menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
+        menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
+        self.PopupMenu(menu)
+        menu.Destroy()
 
     def maybe_start_drag(self, x: int, y: int) -> None:
         if self.drag_started or not self.pending_drag_pos:
@@ -509,6 +542,7 @@ class SchedulerFrame(wx.Frame):
             self.open_event_dialog,
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
+            self.delete_event,
         )
         self.task_panel = TaskPanel(body, self.save)
         self.task_panel.set_tasks(self.tasks)
@@ -649,6 +683,33 @@ class SchedulerFrame(wx.Frame):
         self.save()
         self.refresh_schedule()
         return True
+
+    def delete_event(self, selected_event: ScheduleEvent) -> None:
+        response = wx.MessageBox(
+            f"Delete '{selected_event.title}'?",
+            "Delete event",
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+            self,
+        )
+        if response != wx.YES:
+            return
+
+        if selected_event.source == "google":
+            try:
+                self.google_client.delete_event(selected_event)
+            except Exception as exc:
+                wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
+                return
+            self.google_events = [
+                event for event in self.google_events if event.event_id != selected_event.event_id
+            ]
+        else:
+            self.local_events = [
+                event for event in self.local_events if event.event_id != selected_event.event_id
+            ]
+
+        self.save()
+        self.refresh_schedule()
 
     def connect_google(self) -> None:
         try:
