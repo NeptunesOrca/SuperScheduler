@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -10,121 +9,16 @@ from typing import Callable
 import wx
 import wx.adv
 
+from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text
+from schedule_event import ScheduleEvent
+from task_item import TaskItem
+from serialization import AppStorage
 
 APP_TITLE = "SuperScheduler"
 DATA_FILE = Path(__file__).with_name("superscheduler_data.json")
 CREDENTIALS_FILE = Path(__file__).with_name("credentials.json")
 TOKEN_FILE = Path(__file__).with_name("token.json")
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
-
-
-def local_tz():
-    return datetime.now().astimezone().tzinfo
-
-
-def parse_datetime(value: str) -> datetime:
-    parsed = datetime.fromisoformat(value)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=local_tz())
-    return parsed
-
-
-def start_of_week(day: date | None = None) -> date:
-    current = day or date.today()
-    return current - timedelta(days=current.weekday())
-
-
-def wxdate_to_date(value: wx.DateTime) -> date:
-    return date(value.GetYear(), value.GetMonth() + 1, value.GetDay())
-
-
-def parse_time_text(raw_value: str) -> time:
-    for fmt in ("%H:%M", "%I:%M %p", "%I:%M%p"):
-        try:
-            return datetime.strptime(raw_value.strip(), fmt).time()
-        except ValueError:
-            pass
-    raise ValueError("Use HH:MM, such as 09:30 or 17:00.")
-
-
-@dataclass
-class ScheduleEvent:
-    title: str
-    start: datetime
-    end: datetime
-    source: str = "local"
-    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    description: str = ""
-
-    @classmethod
-    def from_dict(cls, payload: dict) -> "ScheduleEvent":
-        return cls(
-            event_id=payload.get("event_id", str(uuid.uuid4())),
-            title=payload.get("title", "Untitled"),
-            start=parse_datetime(payload["start"]),
-            end=parse_datetime(payload["end"]),
-            source=payload.get("source", "local"),
-            description=payload.get("description", ""),
-        )
-
-    def to_dict(self) -> dict:
-        return {
-            "event_id": self.event_id,
-            "title": self.title,
-            "start": self.start.isoformat(),
-            "end": self.end.isoformat(),
-            "source": self.source,
-            "description": self.description,
-        }
-
-
-@dataclass
-class TaskItem:
-    title: str
-    done: bool = False
-    due: str = ""
-    task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-    @classmethod
-    def from_dict(cls, payload: dict) -> "TaskItem":
-        return cls(
-            task_id=payload.get("task_id", str(uuid.uuid4())),
-            title=payload.get("title", "Untitled task"),
-            done=payload.get("done", False),
-            due=payload.get("due", ""),
-        )
-
-    def to_dict(self) -> dict:
-        return {
-            "task_id": self.task_id,
-            "title": self.title,
-            "done": self.done,
-            "due": self.due,
-        }
-
-
-class AppStorage:
-    def __init__(self, path: Path):
-        self.path = path
-
-    def load(self) -> tuple[list[ScheduleEvent], list[TaskItem]]:
-        if not self.path.exists():
-            return [], []
-
-        with self.path.open("r", encoding="utf-8") as file:
-            payload = json.load(file)
-
-        events = [ScheduleEvent.from_dict(item) for item in payload.get("events", [])]
-        tasks = [TaskItem.from_dict(item) for item in payload.get("tasks", [])]
-        return events, tasks
-
-    def save(self, events: list[ScheduleEvent], tasks: list[TaskItem]) -> None:
-        payload = {
-            "events": [event.to_dict() for event in events if event.source == "local"],
-            "tasks": [task.to_dict() for task in tasks],
-        }
-        with self.path.open("w", encoding="utf-8") as file:
-            json.dump(payload, file, indent=2)
 
 
 class GoogleCalendarClient:
