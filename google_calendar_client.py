@@ -101,6 +101,23 @@ class GoogleCalendarClient:
         event.source = "google"
         return event
 
+    def update_event(self, event: ScheduleEvent) -> ScheduleEvent:
+        service = self.service or self.connect()
+        body = {
+            "summary": event.title,
+            "description": event.description,
+            "start": {"dateTime": event.start.isoformat()},
+            "end": {"dateTime": event.end.isoformat()},
+        }
+        updated = (
+            service.events()
+            .update(calendarId="primary", eventId=event.event_id, body=body)
+            .execute()
+        )
+        event.event_id = updated.get("id", event.event_id)
+        event.source = "google"
+        return event
+
     @staticmethod
     def _parse_google_time(raw_value: str) -> datetime:
         if "T" not in raw_value:

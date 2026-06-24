@@ -28,9 +28,11 @@ class EventDialog(wx.Dialog):
         initial_day: date,
         initial_hour: int = 9,
         google_enabled: bool = False,
+        event: ScheduleEvent | None = None,
     ):
         super().__init__(parent, title=title, size=(420, 330))
         self.google_enabled = google_enabled
+        self.event = event
 
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -39,12 +41,24 @@ class EventDialog(wx.Dialog):
 
         self.title_input = wx.TextCtrl(panel)
         self.date_input = wx.adv.DatePickerCtrl(panel)
-        self.date_input.SetValue(wx.DateTime.FromDMY(initial_day.day, initial_day.month - 1, initial_day.year))
+        selected_day = event.start.date() if event else initial_day
+        selected_hour = event.start.hour if event else initial_hour
+        end_hour = event.end.hour if event else min(initial_hour + 1, 23)
+        self.date_input.SetValue(wx.DateTime.FromDMY(selected_day.day, selected_day.month - 1, selected_day.year))
         self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:00")
-        self.end_input = wx.TextCtrl(panel, value=f"{min(initial_hour + 1, 23):02d}:00")
+        self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:00")
+        self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:00")
+        if event:
+            self.end_input.SetValue(event.end.strftime("%H:%M"))
         self.description_input = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 70))
         self.google_checkbox = wx.CheckBox(panel, label="Add to Google Calendar")
-        self.google_checkbox.Enable(google_enabled)
+        self.google_checkbox.Enable(google_enabled and event is None)
+        if event:
+            self.title_input.SetValue(event.title)
+            self.description_input.SetValue(event.description)
+            if event.source == "google":
+                self.google_checkbox.SetLabel("Google Calendar event")
+                self.google_checkbox.SetValue(True)
 
         rows = [
             ("Title", self.title_input),
@@ -84,9 +98,11 @@ class EventDialog(wx.Dialog):
 
         return (
             ScheduleEvent(
+                event_id=self.event.event_id if self.event else str(uuid.uuid4()),
                 title=event_title,
                 start=start_dt,
                 end=end_dt,
+                source=self.event.source if self.event else "local",
                 description=self.description_input.GetValue().strip(),
             ),
             self.google_checkbox.IsChecked() and self.google_enabled,
@@ -94,13 +110,19 @@ class EventDialog(wx.Dialog):
 
 
 class ScheduleCanvas(wx.ScrolledWindow):
-    def __init__(self, parent: wx.Window, on_new_event: Callable[[date, int], None]):
+    def __init__(
+        self,
+        parent: wx.Window,
+        on_new_event: Callable[[date, int], None],
+        on_edit_event: Callable[[ScheduleEvent], None],
+    ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL | wx.HSCROLL)
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
         self.SetScrollRate(10, 10)
         self.week_start = start_of_week()
         self.events: list[ScheduleEvent] = []
         self.on_new_event = on_new_event
+        self.on_edit_event = on_edit_event
         self.header_height = 58
         self.time_width = 72
         self.row_height = 58
@@ -130,11 +152,44 @@ class ScheduleCanvas(wx.ScrolledWindow):
 
     def on_double_click(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        selected_event = self.hit_test_event(x, y)
+        if selected_event:
+            self.on_edit_event(selected_event)
+            return
+
         if x < self.time_width or y < self.header_height:
             return
         day_index = min(6, max(0, (x - self.time_width) // self.day_width))
         hour = min(23, max(0, (y - self.header_height) // self.row_height))
         self.on_new_event(self.week_start + timedelta(days=day_index), hour)
+
+    def hit_test_event(self, x: int, y: int) -> ScheduleEvent | None:
+        for rect, event in reversed(self.get_event_rects()):
+            if rect.Contains(x, y):
+                return event
+        return None
+
+    def get_event_rects(self) -> list[tuple[wx.Rect, ScheduleEvent]]:
+        event_rects = []
+        week_end = self.week_start + timedelta(days=7)
+
+        for event in sorted(self.events, key=lambda item: item.start):
+            if event.end.date() < self.week_start or event.start.date() >= week_end:
+                continue
+
+            day_index = (event.start.date() - self.week_start).days
+            if day_index < 0 or day_index > 6:
+                continue
+
+            minutes_from_midnight = event.start.hour * 60 + event.start.minute
+            duration_minutes = max(30, int((event.end - event.start).total_seconds() // 60))
+            x = self.time_width + day_index * self.day_width + 6
+            y = self.header_height + int(minutes_from_midnight / 60 * self.row_height) + 3
+            width = self.day_width - 12
+            height = max(28, int(duration_minutes / 60 * self.row_height) - 6)
+            event_rects.append((wx.Rect(x, y, width, height), event))
+
+        return event_rects
 
     def on_paint(self, _event: wx.PaintEvent) -> None:
         dc = wx.AutoBufferedPaintDC(self)
@@ -185,22 +240,11 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def draw_events(self, dc: wx.DC) -> None:
         title_font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         meta_font = wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-        week_end = self.week_start + timedelta(days=7)
-
-        for event in sorted(self.events, key=lambda item: item.start):
-            if event.end.date() < self.week_start or event.start.date() >= week_end:
-                continue
-
-            day_index = (event.start.date() - self.week_start).days
-            if day_index < 0 or day_index > 6:
-                continue
-
-            minutes_from_midnight = event.start.hour * 60 + event.start.minute
-            duration_minutes = max(30, int((event.end - event.start).total_seconds() // 60))
-            x = self.time_width + day_index * self.day_width + 6
-            y = self.header_height + int(minutes_from_midnight / 60 * self.row_height) + 3
-            width = self.day_width - 12
-            height = max(28, int(duration_minutes / 60 * self.row_height) - 6)
+        for rect, event in self.get_event_rects():
+            x = rect.GetX()
+            y = rect.GetY()
+            width = rect.GetWidth()
+            height = rect.GetHeight()
             fill = wx.Colour("#d9ecff") if event.source == "google" else wx.Colour("#e9f6e8")
             border = wx.Colour("#5797d7") if event.source == "google" else wx.Colour("#61a765")
 
@@ -316,7 +360,7 @@ class SchedulerFrame(wx.Frame):
         toolbar.Add(connect_button, 0)
 
         body = wx.SplitterWindow(root, style=wx.SP_LIVE_UPDATE)
-        self.schedule = ScheduleCanvas(body, self.open_event_dialog)
+        self.schedule = ScheduleCanvas(body, self.open_event_dialog, self.open_existing_event_dialog)
         self.task_panel = TaskPanel(body, self.save)
         self.task_panel.set_tasks(self.tasks)
         body.SplitVertically(self.schedule, self.task_panel, sashPosition=880)
@@ -395,6 +439,48 @@ class SchedulerFrame(wx.Frame):
             self.refresh_schedule()
         finally:
             dialog.Destroy()
+
+    def open_existing_event_dialog(self, selected_event: ScheduleEvent) -> None:
+        dialog = EventDialog(
+            self,
+            "Edit event",
+            initial_day=selected_event.start.date(),
+            initial_hour=selected_event.start.hour,
+            google_enabled=self.google_client.is_connected(),
+            event=selected_event,
+        )
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            try:
+                edited_event, _add_to_google = dialog.get_event()
+            except ValueError as exc:
+                wx.MessageBox(str(exc), "Event needs a fix", wx.OK | wx.ICON_WARNING)
+                return
+
+            if selected_event.source == "google":
+                try:
+                    edited_event.source = "google"
+                    self.google_client.update_event(edited_event)
+                    self.replace_event(self.google_events, edited_event)
+                except Exception as exc:
+                    wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
+                    return
+            else:
+                edited_event.source = "local"
+                self.replace_event(self.local_events, edited_event)
+
+            self.save()
+            self.refresh_schedule()
+        finally:
+            dialog.Destroy()
+
+    @staticmethod
+    def replace_event(events: list[ScheduleEvent], edited_event: ScheduleEvent) -> None:
+        for index, event in enumerate(events):
+            if event.event_id == edited_event.event_id:
+                events[index] = edited_event
+                return
 
     def connect_google(self) -> None:
         try:
