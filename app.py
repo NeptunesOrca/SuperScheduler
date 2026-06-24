@@ -115,6 +115,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         parent: wx.Window,
         on_new_event: Callable[[date, int], None],
         on_edit_event: Callable[[ScheduleEvent], None],
+        on_event_changed: Callable[[ScheduleEvent, datetime, datetime], bool],
     ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL | wx.HSCROLL)
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
@@ -123,13 +124,27 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.events: list[ScheduleEvent] = []
         self.on_new_event = on_new_event
         self.on_edit_event = on_edit_event
+        self.on_event_changed = on_event_changed
         self.header_height = 58
         self.time_width = 72
         self.row_height = 58
         self.day_width = 150
+        self.edge_margin = 8
+        self.snap_minutes = 15
+        self.min_duration_minutes = 15
+        self.pending_drag_event: ScheduleEvent | None = None
+        self.pending_drag_mode = ""
+        self.pending_drag_pos: tuple[int, int] | None = None
+        self.drag_started = False
+        self.drag_original_start: datetime | None = None
+        self.drag_original_end: datetime | None = None
+        self.drag_anchor_offset_minutes = 0
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
+        self.Bind(wx.EVT_LEFT_DOWN, self.on_left_down)
+        self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
+        self.Bind(wx.EVT_MOTION, self.on_motion)
 
     def set_week(self, week_start: date) -> None:
         self.week_start = week_start
@@ -154,6 +169,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
         selected_event = self.hit_test_event(x, y)
         if selected_event:
+            self.clear_drag_state()
             self.on_edit_event(selected_event)
             return
 
@@ -164,10 +180,138 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.on_new_event(self.week_start + timedelta(days=day_index), hour)
 
     def hit_test_event(self, x: int, y: int) -> ScheduleEvent | None:
+        result = self.hit_test_event_part(x, y)
+        return result[0] if result else None
+
+    def hit_test_event_part(self, x: int, y: int) -> tuple[ScheduleEvent, str] | None:
         for rect, event in reversed(self.get_event_rects()):
             if rect.Contains(x, y):
-                return event
+                if y <= rect.GetTop() + self.edge_margin:
+                    return event, "resize-start"
+                if y >= rect.GetBottom() - self.edge_margin:
+                    return event, "resize-end"
+                return event, "move"
         return None
+
+    def on_left_down(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        hit_result = self.hit_test_event_part(x, y)
+        if hit_result:
+            selected_event, mode = hit_result
+            self.pending_drag_event = selected_event
+            self.pending_drag_mode = mode
+            self.pending_drag_pos = (x, y)
+            self.drag_original_start = selected_event.start
+            self.drag_original_end = selected_event.end
+            self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(selected_event.start, y))
+        event.Skip()
+
+    def on_motion(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        if self.pending_drag_event and event.LeftIsDown():
+            self.maybe_start_drag(x, y)
+            if self.drag_started:
+                self.update_drag_preview(x, y)
+                return
+
+        if not event.LeftIsDown():
+            self.update_cursor(x, y)
+        event.Skip()
+
+    def on_left_up(self, event: wx.MouseEvent) -> None:
+        if self.drag_started and self.pending_drag_event and self.drag_original_start and self.drag_original_end:
+            if self.HasCapture():
+                self.ReleaseMouse()
+            selected_event = self.pending_drag_event
+            original_start = self.drag_original_start
+            original_end = self.drag_original_end
+            changed = selected_event.start != original_start or selected_event.end != original_end
+            if changed and not self.on_event_changed(selected_event, original_start, original_end):
+                selected_event.start = original_start
+                selected_event.end = original_end
+            self.Refresh()
+        self.clear_drag_state()
+        event.Skip()
+
+    def maybe_start_drag(self, x: int, y: int) -> None:
+        if self.drag_started or not self.pending_drag_pos:
+            return
+        start_x, start_y = self.pending_drag_pos
+        if abs(x - start_x) < 4 and abs(y - start_y) < 4:
+            return
+        self.drag_started = True
+        if not self.HasCapture():
+            self.CaptureMouse()
+
+    def update_drag_preview(self, x: int, y: int) -> None:
+        if not self.pending_drag_event or not self.drag_original_start or not self.drag_original_end:
+            return
+
+        selected_event = self.pending_drag_event
+        if self.pending_drag_mode == "move":
+            duration = self.drag_original_end - self.drag_original_start
+            day_index = self.day_index_from_x(x)
+            start_minutes = self.minutes_from_y(y) - self.drag_anchor_offset_minutes
+            start_minutes = self.snap_to_grid(start_minutes)
+            max_start_minutes = (24 * 60) - max(self.min_duration_minutes, int(duration.total_seconds() // 60))
+            start_minutes = min(max(0, start_minutes), max(0, max_start_minutes))
+            selected_event.start = self.datetime_from_grid(day_index, start_minutes)
+            selected_event.end = selected_event.start + duration
+        elif self.pending_drag_mode == "resize-start":
+            day_index = (self.drag_original_start.date() - self.week_start).days
+            start_minutes = self.snap_to_grid(self.minutes_from_y(y))
+            new_start = self.datetime_from_grid(day_index, max(0, start_minutes))
+            latest_start = selected_event.end - timedelta(minutes=self.min_duration_minutes)
+            selected_event.start = min(new_start, latest_start)
+        elif self.pending_drag_mode == "resize-end":
+            day_index = (self.drag_original_start.date() - self.week_start).days
+            end_minutes = self.snap_to_grid(self.minutes_from_y(y))
+            new_end = self.datetime_from_grid(day_index, min(24 * 60, end_minutes))
+            earliest_end = selected_event.start + timedelta(minutes=self.min_duration_minutes)
+            selected_event.end = max(new_end, earliest_end)
+
+        self.Refresh()
+
+    def update_cursor(self, x: int, y: int) -> None:
+        hit_result = self.hit_test_event_part(x, y)
+        if not hit_result:
+            self.SetCursor(wx.Cursor(wx.CURSOR_ARROW))
+            return
+        _selected_event, mode = hit_result
+        if mode.startswith("resize"):
+            self.SetCursor(wx.Cursor(wx.CURSOR_SIZENS))
+        else:
+            self.SetCursor(wx.Cursor(wx.CURSOR_HAND))
+
+    def clear_drag_state(self) -> None:
+        self.pending_drag_event = None
+        self.pending_drag_mode = ""
+        self.pending_drag_pos = None
+        self.drag_started = False
+        self.drag_original_start = None
+        self.drag_original_end = None
+        self.drag_anchor_offset_minutes = 0
+
+    def day_index_from_x(self, x: int) -> int:
+        return min(6, max(0, (x - self.time_width) // self.day_width))
+
+    def minutes_from_y(self, y: int) -> int:
+        raw_minutes = int((y - self.header_height) / self.row_height * 60)
+        return min(24 * 60, max(0, raw_minutes))
+
+    def snap_to_grid(self, minutes: int) -> int:
+        return int(round(minutes / self.snap_minutes) * self.snap_minutes)
+
+    def datetime_from_grid(self, day_index: int, minutes: int) -> datetime:
+        event_day = self.week_start + timedelta(days=day_index)
+        return datetime.combine(event_day, datetime.min.time()).replace(tzinfo=local_tz()) + timedelta(minutes=minutes)
+
+    def minutes_since_midnight(self, value: datetime) -> int:
+        return value.hour * 60 + value.minute
+
+    def minutes_from_datetime(self, start_value: datetime, y: int) -> int:
+        clicked_minutes = self.minutes_from_y(y)
+        return self.snap_to_grid(clicked_minutes - self.minutes_since_midnight(start_value))
 
     def get_event_rects(self) -> list[tuple[wx.Rect, ScheduleEvent]]:
         event_rects = []
@@ -360,7 +504,12 @@ class SchedulerFrame(wx.Frame):
         toolbar.Add(connect_button, 0)
 
         body = wx.SplitterWindow(root, style=wx.SP_LIVE_UPDATE)
-        self.schedule = ScheduleCanvas(body, self.open_event_dialog, self.open_existing_event_dialog)
+        self.schedule = ScheduleCanvas(
+            body,
+            self.open_event_dialog,
+            self.open_existing_event_dialog,
+            self.handle_event_drag_changed,
+        )
         self.task_panel = TaskPanel(body, self.save)
         self.task_panel.set_tasks(self.tasks)
         body.SplitVertically(self.schedule, self.task_panel, sashPosition=880)
@@ -481,6 +630,25 @@ class SchedulerFrame(wx.Frame):
             if event.event_id == edited_event.event_id:
                 events[index] = edited_event
                 return
+
+    def handle_event_drag_changed(
+        self,
+        selected_event: ScheduleEvent,
+        _original_start: datetime,
+        _original_end: datetime,
+    ) -> bool:
+        if selected_event.source == "google":
+            try:
+                self.google_client.update_event(selected_event)
+            except Exception as exc:
+                wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
+                return False
+        else:
+            selected_event.source = "local"
+
+        self.save()
+        self.refresh_schedule()
+        return True
 
     def connect_google(self) -> None:
         try:
