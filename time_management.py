@@ -6,6 +6,16 @@ import wx.adv
 def local_tz():
     return datetime.now().astimezone().tzinfo
 
+def serialize_datetime_or_none(value : datetime | None) -> str:
+    if not value:
+        return "None"
+    return value.isoformat()
+
+def parse_datetime_or_none(value: str) -> datetime | None:
+    if value == "None":
+        return None
+    return parse_datetime(value)
+
 def parse_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None:

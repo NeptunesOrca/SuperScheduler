@@ -1,9 +1,14 @@
 import json
 from pathlib import Path
+from datetime import datetime
 
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
+from time_management import serialize_datetime_or_none
 
+def serialize_none_or_datetime(value : datetime | None) -> str:
+    return serialize_datetime_or_none(value)
+    
 class AppStorage:
     def __init__(self, path: Path):
         self.path = path
