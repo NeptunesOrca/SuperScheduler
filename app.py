@@ -19,6 +19,10 @@ APP_TITLE = "SuperScheduler"
 DATA_FILE = Path(__file__).with_name("superscheduler_data.json")
 CREDENTIALS_FILE = Path(__file__).with_name("credentials.json")
 TOKEN_FILE = Path(__file__).with_name("token.json")
+TASK_PANEL_LEFT = "left"
+TASK_PANEL_RIGHT = "right"
+TASK_PANEL_MIN_WIDTH = 260
+TASK_PANEL_DEFAULT_WIDTH = 300
 
 class EventDialog(wx.Dialog):
     def __init__(
@@ -509,6 +513,8 @@ class SchedulerFrame(wx.Frame):
         self.google_client = GoogleCalendarClient(CREDENTIALS_FILE, TOKEN_FILE)
         self.google_events: list[ScheduleEvent] = []
         self.current_week = start_of_week()
+        self.task_panel_side = TASK_PANEL_RIGHT
+        self.task_panel_width = TASK_PANEL_DEFAULT_WIDTH
 
         self.build_ui()
         self.refresh_title()
@@ -536,21 +542,21 @@ class SchedulerFrame(wx.Frame):
         toolbar.Add(sync_button, 0, wx.RIGHT, 6)
         toolbar.Add(connect_button, 0)
 
-        body = wx.SplitterWindow(root, style=wx.SP_LIVE_UPDATE)
+        self.body = wx.SplitterWindow(root, style=wx.SP_LIVE_UPDATE)
         self.schedule = ScheduleCanvas(
-            body,
+            self.body,
             self.open_event_dialog,
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
             self.delete_event,
         )
-        self.task_panel = TaskPanel(body, self.save)
+        self.task_panel = TaskPanel(self.body, self.save)
         self.task_panel.set_tasks(self.tasks)
-        body.SplitVertically(self.schedule, self.task_panel, sashPosition=880)
-        body.SetMinimumPaneSize(260)
+        self.body.SplitVertically(self.schedule, self.task_panel, sashPosition=880)
+        self.body.SetMinimumPaneSize(TASK_PANEL_MIN_WIDTH)
 
         root_sizer.Add(toolbar, 0, wx.ALL | wx.EXPAND, 10)
-        root_sizer.Add(body, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        root_sizer.Add(self.body, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
         root.SetSizer(root_sizer)
 
         previous_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_week(-1))
@@ -567,11 +573,57 @@ class SchedulerFrame(wx.Frame):
         file_menu.AppendSeparator()
         file_menu.Append(wx.ID_EXIT, "Exit")
         menubar.Append(file_menu, "File")
+        view_menu = wx.Menu()
+        self.task_panel_left_id = wx.NewIdRef()
+        self.task_panel_right_id = wx.NewIdRef()
+        view_menu.AppendRadioItem(self.task_panel_left_id, "Task panel on left")
+        view_menu.AppendRadioItem(self.task_panel_right_id, "Task panel on right")
+        view_menu.Check(self.task_panel_right_id, True)
+        menubar.Append(view_menu, "View")
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, lambda _event: self.open_event_dialog(date.today(), 9), id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, lambda _event: self.save(), id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, lambda _event: self.set_task_panel_side(TASK_PANEL_LEFT), id=self.task_panel_left_id)
+        self.Bind(wx.EVT_MENU, lambda _event: self.set_task_panel_side(TASK_PANEL_RIGHT), id=self.task_panel_right_id)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def set_task_panel_side(self, side: str) -> None:
+        if side == self.task_panel_side:
+            return
+
+        self.remember_task_panel_width()
+        self.task_panel_side = side
+        self.body.Unsplit()
+        panel_width = self.clamp_task_panel_width(self.task_panel_width)
+
+        if side == TASK_PANEL_LEFT:
+            self.body.SplitVertically(self.task_panel, self.schedule, sashPosition=panel_width)
+        else:
+            self.body.SplitVertically(
+                self.schedule,
+                self.task_panel,
+                sashPosition=self.body.GetClientSize().width - panel_width,
+            )
+
+        menubar = self.GetMenuBar()
+        menubar.Check(self.task_panel_left_id, side == TASK_PANEL_LEFT)
+        menubar.Check(self.task_panel_right_id, side == TASK_PANEL_RIGHT)
+        self.body.Layout()
+
+    def remember_task_panel_width(self) -> None:
+        client_width = self.body.GetClientSize().width
+        sash_position = self.body.GetSashPosition()
+        if self.task_panel_side == TASK_PANEL_LEFT:
+            panel_width = sash_position
+        else:
+            panel_width = client_width - sash_position
+        self.task_panel_width = self.clamp_task_panel_width(panel_width)
+
+    def clamp_task_panel_width(self, panel_width: int) -> int:
+        client_width = self.body.GetClientSize().width
+        maximum_width = max(TASK_PANEL_MIN_WIDTH, client_width - TASK_PANEL_MIN_WIDTH)
+        return min(max(TASK_PANEL_MIN_WIDTH, panel_width), maximum_width)
 
     def refresh_title(self) -> None:
         week_end = self.current_week + timedelta(days=6)

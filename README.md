@@ -9,7 +9,7 @@ SuperScheduler is a small wxPython desktop scheduling app with a one-week calend
 - Double-click an existing event to edit its title, date, time, and notes.
 - Drag events to move them, or drag their top/bottom edges to resize their times.
 - Right-click an event to edit, create another event, or delete it.
-- Task side panel with add, complete, and delete actions.
+- Task side panel with add, complete, delete, and left/right placement controls.
 - Local events and tasks are saved to `superscheduler_data.json`.
 - Google Calendar OAuth connection can import events from your primary calendar.
 - New events can be saved locally or sent to Google Calendar after connecting.
