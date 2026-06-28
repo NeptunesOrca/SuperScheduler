@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -23,6 +24,8 @@ TASK_PANEL_LEFT = "left"
 TASK_PANEL_RIGHT = "right"
 TASK_PANEL_MIN_WIDTH = 260
 TASK_PANEL_DEFAULT_WIDTH = 300
+VIEW_WEEK = "week"
+VIEW_MONTH = "month"
 
 class EventDialog(wx.Dialog):
     def __init__(
@@ -443,6 +446,215 @@ class ScheduleCanvas(wx.ScrolledWindow):
             del clip
 
 
+class MonthCalendarCanvas(wx.ScrolledWindow):
+    def __init__(
+        self,
+        parent: wx.Window,
+        on_new_event: Callable[[date, int], None],
+        on_edit_event: Callable[[ScheduleEvent], None],
+        on_delete_event: Callable[[ScheduleEvent], None],
+    ):
+        super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL)
+        self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+        self.SetScrollRate(10, 10)
+        today = date.today()
+        self.month_start = date(today.year, today.month, 1)
+        self.events: list[ScheduleEvent] = []
+        self.on_new_event = on_new_event
+        self.on_edit_event = on_edit_event
+        self.on_delete_event = on_delete_event
+        self.header_height = 42
+        self.cell_width = 142
+        self.cell_height = 112
+        self.day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        self.Bind(wx.EVT_PAINT, self.on_paint)
+        self.Bind(wx.EVT_SIZE, self.on_size)
+        self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
+
+    def set_month(self, month_start: date) -> None:
+        self.month_start = date(month_start.year, month_start.month, 1)
+        self.update_virtual_size()
+        self.Refresh()
+
+    def set_events(self, events: list[ScheduleEvent]) -> None:
+        self.events = events
+        self.Refresh()
+
+    def on_size(self, event: wx.SizeEvent) -> None:
+        self.update_virtual_size()
+        self.Refresh()
+        event.Skip()
+
+    def update_virtual_size(self) -> None:
+        available_width = max(self.GetClientSize().width, 0)
+        self.cell_width = max(118, available_width // 7)
+        self.cell_height = max(96, (max(self.GetClientSize().height, 620) - self.header_height) // 6)
+        self.SetVirtualSize((self.cell_width * 7, self.header_height + self.cell_height * 6))
+
+    def on_double_click(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        selected_event = self.hit_test_event(x, y)
+        if selected_event:
+            self.on_edit_event(selected_event)
+            return
+
+        selected_day = self.day_from_position(x, y)
+        if selected_day:
+            self.on_new_event(selected_day, 9)
+
+    def on_right_down(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        selected_day = self.day_from_position(x, y)
+        selected_event = self.hit_test_event(x, y)
+        if not selected_day and not selected_event:
+            event.Skip()
+            return
+
+        menu = wx.Menu()
+        new_id = wx.Window.NewControlId()
+        menu.Append(new_id, "New event")
+        menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(selected_day or date.today(), 9), id=new_id)
+        if selected_event:
+            edit_id = wx.Window.NewControlId()
+            delete_id = wx.Window.NewControlId()
+            menu.AppendSeparator()
+            menu.Append(edit_id, "Edit event")
+            menu.Append(delete_id, "Delete event")
+            menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
+            menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
+
+        self.PopupMenu(menu)
+        menu.Destroy()
+
+    def day_from_position(self, x: int, y: int) -> date | None:
+        if y < self.header_height:
+            return None
+        column = min(6, max(0, x // self.cell_width))
+        row = min(5, max(0, (y - self.header_height) // self.cell_height))
+        return self.first_visible_day() + timedelta(days=row * 7 + column)
+
+    def first_visible_day(self) -> date:
+        return self.month_start - timedelta(days=self.month_start.weekday())
+
+    def hit_test_event(self, x: int, y: int) -> ScheduleEvent | None:
+        for rect, event in reversed(self.get_event_rects()):
+            if rect.Contains(x, y):
+                return event
+        return None
+
+    def get_event_rects(self) -> list[tuple[wx.Rect, ScheduleEvent]]:
+        rects = []
+        first_day = self.first_visible_day()
+        last_day = first_day + timedelta(days=42)
+        visible_counts: dict[date, int] = {}
+
+        for event in sorted(self.events, key=lambda item: item.start):
+            event_day = event.start.date()
+            if event_day < first_day or event_day >= last_day:
+                continue
+
+            count = visible_counts.get(event_day, 0)
+            visible_counts[event_day] = count + 1
+            if count >= 4:
+                continue
+
+            offset = (event_day - first_day).days
+            column = offset % 7
+            row = offset // 7
+            x = column * self.cell_width + 6
+            y = self.header_height + row * self.cell_height + 30 + count * 20
+            rects.append((wx.Rect(x, y, self.cell_width - 12, 17), event))
+
+        return rects
+
+    def on_paint(self, _event: wx.PaintEvent) -> None:
+        dc = wx.AutoBufferedPaintDC(self)
+        self.PrepareDC(dc)
+        dc.SetBackground(wx.Brush(wx.Colour("#f7f8fb")))
+        dc.Clear()
+        self.draw_headers(dc)
+        self.draw_grid(dc)
+        self.draw_events(dc)
+
+    def draw_headers(self, dc: wx.DC) -> None:
+        dc.SetPen(wx.Pen(wx.Colour("#d7dbe3"), 1))
+        dc.SetBrush(wx.Brush(wx.Colour("#ffffff")))
+        dc.DrawRectangle(0, 0, self.cell_width * 7, self.header_height)
+
+        header_font = wx.Font(9, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        dc.SetFont(header_font)
+        dc.SetTextForeground(wx.Colour("#222733"))
+        for column, day_name in enumerate(self.day_names):
+            x = column * self.cell_width
+            dc.DrawText(day_name, x + 10, 13)
+
+    def draw_grid(self, dc: wx.DC) -> None:
+        first_day = self.first_visible_day()
+        today = date.today()
+        day_font = wx.Font(9, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        outside_font = wx.Font(9, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+
+        for row in range(6):
+            for column in range(7):
+                current_day = first_day + timedelta(days=row * 7 + column)
+                x = column * self.cell_width
+                y = self.header_height + row * self.cell_height
+                fill = wx.Colour("#ffffff") if current_day.month == self.month_start.month else wx.Colour("#f0f2f6")
+                if current_day == today:
+                    fill = wx.Colour("#fff7df")
+
+                dc.SetPen(wx.Pen(wx.Colour("#d7dbe3"), 1))
+                dc.SetBrush(wx.Brush(fill))
+                dc.DrawRectangle(x, y, self.cell_width, self.cell_height)
+                dc.SetFont(day_font if current_day.month == self.month_start.month else outside_font)
+                dc.SetTextForeground(wx.Colour("#222733") if current_day.month == self.month_start.month else wx.Colour("#858c99"))
+                dc.DrawText(str(current_day.day), x + 10, y + 8)
+
+    def draw_events(self, dc: wx.DC) -> None:
+        title_font = wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+        dc.SetFont(title_font)
+        event_counts = self.count_events_by_day()
+
+        for rect, event in self.get_event_rects():
+            fill = wx.Colour("#d9ecff") if event.source == "google" else wx.Colour("#e9f6e8")
+            border = wx.Colour("#5797d7") if event.source == "google" else wx.Colour("#61a765")
+            dc.SetPen(wx.Pen(border, 1))
+            dc.SetBrush(wx.Brush(fill))
+            dc.DrawRoundedRectangle(rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight(), 4)
+            clip = wx.DCClipper(dc, rect.GetX() + 4, rect.GetY() + 2, rect.GetWidth() - 8, rect.GetHeight() - 4)
+            dc.SetTextForeground(wx.Colour("#20242d"))
+            dc.DrawText(f"{event.start.strftime('%H:%M')} {event.title}", rect.GetX() + 5, rect.GetY() + 2)
+            del clip
+
+        self.draw_overflow_counts(dc, event_counts)
+
+    def count_events_by_day(self) -> dict[date, int]:
+        counts: dict[date, int] = {}
+        first_day = self.first_visible_day()
+        last_day = first_day + timedelta(days=42)
+        for event in self.events:
+            event_day = event.start.date()
+            if first_day <= event_day < last_day:
+                counts[event_day] = counts.get(event_day, 0) + 1
+        return counts
+
+    def draw_overflow_counts(self, dc: wx.DC, event_counts: dict[date, int]) -> None:
+        overflow_font = wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        dc.SetFont(overflow_font)
+        dc.SetTextForeground(wx.Colour("#5f6776"))
+        first_day = self.first_visible_day()
+        for current_day, count in event_counts.items():
+            if count <= 4:
+                continue
+            offset = (current_day - first_day).days
+            column = offset % 7
+            row = offset // 7
+            x = column * self.cell_width + 10
+            y = self.header_height + row * self.cell_height + 112
+            dc.DrawText(f"+{count - 4} more", x, min(y, self.header_height + (row + 1) * self.cell_height - 18))
+
+
 class TaskPanel(wx.Panel):
     def __init__(self, parent: wx.Window, on_change: Callable[[], None]):
         super().__init__(parent)
@@ -513,6 +725,8 @@ class SchedulerFrame(wx.Frame):
         self.google_client = GoogleCalendarClient(CREDENTIALS_FILE, TOKEN_FILE)
         self.google_events: list[ScheduleEvent] = []
         self.current_week = start_of_week()
+        self.current_month = date.today().replace(day=1)
+        self.current_view = VIEW_WEEK
         self.task_panel_side = TASK_PANEL_RIGHT
         self.task_panel_width = TASK_PANEL_DEFAULT_WIDTH
 
@@ -543,25 +757,37 @@ class SchedulerFrame(wx.Frame):
         toolbar.Add(connect_button, 0)
 
         self.body = wx.SplitterWindow(root, style=wx.SP_LIVE_UPDATE)
+        self.calendar_panel = wx.Panel(self.body)
+        calendar_sizer = wx.BoxSizer(wx.VERTICAL)
         self.schedule = ScheduleCanvas(
-            self.body,
+            self.calendar_panel,
             self.open_event_dialog,
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
             self.delete_event,
         )
+        self.month_calendar = MonthCalendarCanvas(
+            self.calendar_panel,
+            self.open_event_dialog,
+            self.open_existing_event_dialog,
+            self.delete_event,
+        )
+        calendar_sizer.Add(self.schedule, 1, wx.EXPAND)
+        calendar_sizer.Add(self.month_calendar, 1, wx.EXPAND)
+        self.calendar_panel.SetSizer(calendar_sizer)
+        self.month_calendar.Hide()
         self.task_panel = TaskPanel(self.body, self.save)
         self.task_panel.set_tasks(self.tasks)
-        self.body.SplitVertically(self.schedule, self.task_panel, sashPosition=880)
+        self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
         self.body.SetMinimumPaneSize(TASK_PANEL_MIN_WIDTH)
 
         root_sizer.Add(toolbar, 0, wx.ALL | wx.EXPAND, 10)
         root_sizer.Add(self.body, 1, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
         root.SetSizer(root_sizer)
 
-        previous_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_week(-1))
-        today_button.Bind(wx.EVT_BUTTON, lambda _event: self.set_week(start_of_week()))
-        next_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_week(1))
+        previous_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(-1))
+        today_button.Bind(wx.EVT_BUTTON, lambda _event: self.set_today())
+        next_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(1))
         new_button.Bind(wx.EVT_BUTTON, lambda _event: self.open_event_dialog(date.today(), 9))
         sync_button.Bind(wx.EVT_BUTTON, lambda _event: self.sync_google())
         connect_button.Bind(wx.EVT_BUTTON, lambda _event: self.connect_google())
@@ -574,8 +800,14 @@ class SchedulerFrame(wx.Frame):
         file_menu.Append(wx.ID_EXIT, "Exit")
         menubar.Append(file_menu, "File")
         view_menu = wx.Menu()
+        self.week_view_id = wx.NewIdRef()
+        self.month_view_id = wx.NewIdRef()
         self.task_panel_left_id = wx.NewIdRef()
         self.task_panel_right_id = wx.NewIdRef()
+        view_menu.AppendRadioItem(self.week_view_id, "Week view")
+        view_menu.AppendRadioItem(self.month_view_id, "Month view")
+        view_menu.Check(self.week_view_id, True)
+        view_menu.AppendSeparator()
         view_menu.AppendRadioItem(self.task_panel_left_id, "Task panel on left")
         view_menu.AppendRadioItem(self.task_panel_right_id, "Task panel on right")
         view_menu.Check(self.task_panel_right_id, True)
@@ -584,9 +816,31 @@ class SchedulerFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda _event: self.open_event_dialog(date.today(), 9), id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, lambda _event: self.save(), id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, lambda _event: self.set_calendar_view(VIEW_WEEK), id=self.week_view_id)
+        self.Bind(wx.EVT_MENU, lambda _event: self.set_calendar_view(VIEW_MONTH), id=self.month_view_id)
         self.Bind(wx.EVT_MENU, lambda _event: self.set_task_panel_side(TASK_PANEL_LEFT), id=self.task_panel_left_id)
         self.Bind(wx.EVT_MENU, lambda _event: self.set_task_panel_side(TASK_PANEL_RIGHT), id=self.task_panel_right_id)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+
+    def set_calendar_view(self, view_name: str) -> None:
+        if view_name == self.current_view:
+            return
+
+        self.current_view = view_name
+        if view_name == VIEW_MONTH:
+            self.current_month = date(self.current_week.year, self.current_week.month, 1)
+            self.schedule.Hide()
+            self.month_calendar.Show()
+        else:
+            self.current_week = start_of_week(self.current_month)
+            self.month_calendar.Hide()
+            self.schedule.Show()
+
+        menubar = self.GetMenuBar()
+        menubar.Check(self.week_view_id, view_name == VIEW_WEEK)
+        menubar.Check(self.month_view_id, view_name == VIEW_MONTH)
+        self.calendar_panel.Layout()
+        self.refresh_schedule()
 
     def set_task_panel_side(self, side: str) -> None:
         if side == self.task_panel_side:
@@ -598,10 +852,10 @@ class SchedulerFrame(wx.Frame):
         panel_width = self.clamp_task_panel_width(self.task_panel_width)
 
         if side == TASK_PANEL_LEFT:
-            self.body.SplitVertically(self.task_panel, self.schedule, sashPosition=panel_width)
+            self.body.SplitVertically(self.task_panel, self.calendar_panel, sashPosition=panel_width)
         else:
             self.body.SplitVertically(
-                self.schedule,
+                self.calendar_panel,
                 self.task_panel,
                 sashPosition=self.body.GetClientSize().width - panel_width,
             )
@@ -626,6 +880,10 @@ class SchedulerFrame(wx.Frame):
         return min(max(TASK_PANEL_MIN_WIDTH, panel_width), maximum_width)
 
     def refresh_title(self) -> None:
+        if self.current_view == VIEW_MONTH:
+            self.week_label.SetLabel(self.current_month.strftime("%B %Y"))
+            return
+
         week_end = self.current_week + timedelta(days=6)
         self.week_label.SetLabel(f"{self.current_week.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')}")
 
@@ -633,16 +891,46 @@ class SchedulerFrame(wx.Frame):
         all_events = self.local_events + self.google_events
         self.schedule.set_week(self.current_week)
         self.schedule.set_events(all_events)
+        self.month_calendar.set_month(self.current_month)
+        self.month_calendar.set_events(all_events)
         self.refresh_title()
 
     def set_week(self, week_start_value: date) -> None:
         self.current_week = week_start_value
+        self.current_month = date(week_start_value.year, week_start_value.month, 1)
         self.refresh_schedule()
         if self.google_client.is_connected():
             self.sync_google(show_success=False)
 
     def change_week(self, delta_weeks: int) -> None:
         self.set_week(self.current_week + timedelta(days=delta_weeks * 7))
+
+    def set_today(self) -> None:
+        if self.current_view == VIEW_MONTH:
+            self.set_month(date.today().replace(day=1))
+        else:
+            self.set_week(start_of_week())
+
+    def change_period(self, delta: int) -> None:
+        if self.current_view == VIEW_MONTH:
+            self.set_month(self.shift_month(self.current_month, delta))
+        else:
+            self.change_week(delta)
+
+    def set_month(self, month_start_value: date) -> None:
+        self.current_month = date(month_start_value.year, month_start_value.month, 1)
+        self.current_week = start_of_week(self.current_month)
+        self.refresh_schedule()
+        if self.google_client.is_connected():
+            self.sync_google(show_success=False)
+
+    @staticmethod
+    def shift_month(month_start_value: date, delta_months: int) -> date:
+        month_index = month_start_value.month - 1 + delta_months
+        year = month_start_value.year + month_index // 12
+        month = month_index % 12 + 1
+        _weekday, days_in_month = calendar.monthrange(year, month)
+        return date(year, month, min(month_start_value.day, days_in_month))
 
     def open_event_dialog(self, initial_day: date, initial_hour: int) -> None:
         dialog = EventDialog(
