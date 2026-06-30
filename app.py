@@ -734,6 +734,18 @@ class SchedulerFrame(wx.Frame):
         self.refresh_title()
         self.refresh_schedule()
 
+    def getEventByID(self, event_id: str) -> ScheduleEvent | None:
+        for event in self.local_events + self.google_events:
+            if event.event_id == event_id:
+                return event
+        return None
+    
+    def getTaskByID(self, task_id: str) -> TaskItem | None:
+        for task in self.tasks:
+            if task.task_id == task_id:
+                return task
+        return None
+
     def build_ui(self) -> None:
         root = wx.Panel(self)
         root_sizer = wx.BoxSizer(wx.VERTICAL)
