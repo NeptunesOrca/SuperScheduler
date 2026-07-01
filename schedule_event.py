@@ -17,7 +17,7 @@ class ScheduleEvent:
     source: str = "local"
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     description: str = ""
-    linkedTaskID: int | None = None
+    linkedTaskID: str | None = None
 
     @classmethod
     def from_dict(cls, payload: dict) -> "ScheduleEvent":
@@ -28,7 +28,7 @@ class ScheduleEvent:
             end=parse_datetime(payload["end"]),
             source=payload.get("source", "local"),
             description=payload.get("description", ""),
-            linkedTaskID=payload.get("linked_task_id") if payload.get("linked_task") else None
+            linkedTaskID=payload.get("linked_task_id")
         )
 
     def to_dict(self) -> dict:

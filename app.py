@@ -111,6 +111,7 @@ class EventDialog(wx.Dialog):
                 end=end_dt,
                 source=self.event.source if self.event else "local",
                 description=self.description_input.GetValue().strip(),
+                linkedTaskID=self.event.linkedTaskID if self.event else None,
             ),
             self.google_checkbox.IsChecked() and self.google_enabled,
         )
@@ -656,10 +657,16 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
 
 class TaskPanel(wx.Panel):
-    def __init__(self, parent: wx.Window, on_change: Callable[[], None]):
+    def __init__(
+        self,
+        parent: wx.Window,
+        on_change: Callable[[], None],
+        on_create_event_from_task: Callable[[TaskItem], None] | None = None,
+    ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
         self.on_change = on_change
+        self.on_create_event_from_task = on_create_event_from_task
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         header = wx.StaticText(self, label="Tasks")
@@ -682,6 +689,30 @@ class TaskPanel(wx.Panel):
         delete_button.Bind(wx.EVT_BUTTON, self.delete_selected)
         self.task_input.Bind(wx.EVT_TEXT_ENTER, self.add_task)
         self.task_list.Bind(wx.EVT_CHECKLISTBOX, self.toggle_task)
+        self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_begin_drag)
+        self.task_list.Bind(wx.EVT_LEFT_UP, self.on_task_drop)
+        self.task_list.Bind(wx.EVT_LEFT_DCLICK, self.on_task_double_click)
+        self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_left_click)
+        self.task_list.Bind(wx.EVT_CONTEXT_MENU, self.on_task_right_click)
+
+    def on_task_begin_drag(self, event: wx.MouseEvent) -> None:
+        event.Skip()
+
+    def on_task_drop(self, event: wx.MouseEvent) -> None:
+        event.Skip()
+
+    def on_task_double_click(self, event: wx.MouseEvent) -> None:
+        selection = self.task_list.GetSelection()
+        if selection != wx.NOT_FOUND and self.on_create_event_from_task is not None:
+            self.on_create_event_from_task(self.tasks[selection])
+        event.Skip()
+
+    def on_task_left_click(self, event: wx.MouseEvent) -> None:
+        event.Skip()
+
+    def on_task_right_click(self, event: wx.ContextMenuEvent) -> None:
+        menu = wx.Menu()
+        self.task_list.PopupMenu(menu, event.GetPosition())
 
     def set_tasks(self, tasks: list[TaskItem]) -> None:
         self.tasks = tasks
@@ -773,14 +804,14 @@ class SchedulerFrame(wx.Frame):
         calendar_sizer = wx.BoxSizer(wx.VERTICAL)
         self.schedule = ScheduleCanvas(
             self.calendar_panel,
-            self.open_event_dialog,
+            self.new_event_dialog,
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
             self.delete_event,
         )
         self.month_calendar = MonthCalendarCanvas(
             self.calendar_panel,
-            self.open_event_dialog,
+            self.new_event_dialog,
             self.open_existing_event_dialog,
             self.delete_event,
         )
@@ -788,7 +819,7 @@ class SchedulerFrame(wx.Frame):
         calendar_sizer.Add(self.month_calendar, 1, wx.EXPAND)
         self.calendar_panel.SetSizer(calendar_sizer)
         self.month_calendar.Hide()
-        self.task_panel = TaskPanel(self.body, self.save)
+        self.task_panel = TaskPanel(self.body, self.save, self.create_event_from_task)
         self.task_panel.set_tasks(self.tasks)
         self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
         self.body.SetMinimumPaneSize(TASK_PANEL_MIN_WIDTH)
@@ -800,7 +831,7 @@ class SchedulerFrame(wx.Frame):
         previous_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(-1))
         today_button.Bind(wx.EVT_BUTTON, lambda _event: self.set_today())
         next_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(1))
-        new_button.Bind(wx.EVT_BUTTON, lambda _event: self.open_event_dialog(date.today(), 9))
+        new_button.Bind(wx.EVT_BUTTON, lambda _event: self.new_event_dialog(date.today(), 9))
         sync_button.Bind(wx.EVT_BUTTON, lambda _event: self.sync_google())
         connect_button.Bind(wx.EVT_BUTTON, lambda _event: self.connect_google())
 
@@ -825,7 +856,7 @@ class SchedulerFrame(wx.Frame):
         view_menu.Check(self.task_panel_right_id, True)
         menubar.Append(view_menu, "View")
         self.SetMenuBar(menubar)
-        self.Bind(wx.EVT_MENU, lambda _event: self.open_event_dialog(date.today(), 9), id=wx.ID_NEW)
+        self.Bind(wx.EVT_MENU, lambda _event: self.new_event_dialog(date.today(), 9), id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, lambda _event: self.save(), id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, lambda _event: self.set_calendar_view(VIEW_WEEK), id=self.week_view_id)
@@ -944,10 +975,30 @@ class SchedulerFrame(wx.Frame):
         _weekday, days_in_month = calendar.monthrange(year, month)
         return date(year, month, min(month_start_value.day, days_in_month))
 
-    def open_event_dialog(self, initial_day: date, initial_hour: int) -> None:
+    def create_event_from_task(self, task: TaskItem, initial_day: date | None = None, initial_hour: int | None = None) -> None:
+        if initial_day is None:
+            initial_day = date.today()
+        if initial_hour is None:
+            initial_hour = datetime.now().hour
+        start_dt = datetime.combine(initial_day, datetime.now().time().replace(hour=initial_hour, minute=0, second=0, microsecond=0)).replace(tzinfo=local_tz())
+        end_dt = start_dt + timedelta(hours=1)
+        event = ScheduleEvent(
+            event_id=str(uuid.uuid4()),
+            title=task.title,
+            start=start_dt,
+            end=end_dt,
+            source="local",
+            description="",
+            linkedTaskID=task.task_id,
+        )
+        self.local_events.append(event)
+        self.save()
+        self.refresh_schedule()
+
+    def new_event_dialog(self, initial_day: date, initial_hour: int, eventTitle: str = "New Event") -> None:
         dialog = EventDialog(
             self,
-            "New event",
+            title=eventTitle,
             initial_day=initial_day,
             initial_hour=initial_hour,
             google_enabled=self.google_client.is_connected(),
