@@ -22,13 +22,14 @@ class ScheduleEvent:
     @classmethod
     def from_dict(cls, payload: dict) -> "ScheduleEvent":
         return cls(
-            event_id=payload.get("event_id", str(uuid.uuid4())),
-            title=payload.get("title", "Untitled"),
-            start=parse_datetime(payload["start"]),
-            end=parse_datetime(payload["end"]),
-            source=payload.get("source", "local"),
-            description=payload.get("description", ""),
-            linkedTaskID=payload.get("linked_task_id")
+            # Field       | Value                             | Default
+            event_id=       payload.get("event_id",             str(uuid.uuid4())),
+            title=          payload.get("title",                "Untitled"),
+            start=          parse_datetime(payload["start"]),   # N/A (via parse_datetime)
+            end=            parse_datetime(payload["end"]),     # N/A (via parse_datetime)
+            source=         payload.get("source",               "local"),
+            description=    payload.get("description",          ""),
+            linkedTaskID=   payload.get("linked_task_id",       None)
         )
 
     def to_dict(self) -> dict:
