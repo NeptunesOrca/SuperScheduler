@@ -995,7 +995,7 @@ class SchedulerFrame(wx.Frame):
         self.save()
         self.refresh_schedule()
 
-    def new_event_dialog(self, initial_day: date, initial_hour: int, eventTitle: str = "New Event") -> None:
+    def new_event_dialog(self, initial_day: date, initial_hour: int, eventTitle: str = "New Event") -> None | ScheduleEvent:
         dialog = EventDialog(
             self,
             title=eventTitle,
@@ -1005,12 +1005,12 @@ class SchedulerFrame(wx.Frame):
         )
         try:
             if dialog.ShowModal() != wx.ID_OK:
-                return
+                return None
             try:
                 event, add_to_google = dialog.get_event()
             except ValueError as exc:
                 wx.MessageBox(str(exc), "Event needs a fix", wx.OK | wx.ICON_WARNING)
-                return
+                return None
 
             if add_to_google:
                 try:
@@ -1018,11 +1018,12 @@ class SchedulerFrame(wx.Frame):
                     self.google_events.append(created)
                 except Exception as exc:
                     wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
-                    return
+                    return None
             else:
                 self.local_events.append(event)
             self.save()
             self.refresh_schedule()
+            return event
         finally:
             dialog.Destroy()
 
