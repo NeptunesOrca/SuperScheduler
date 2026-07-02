@@ -36,6 +36,7 @@ class EventDialog(wx.Dialog):
         initial_hour: int = 9,
         google_enabled: bool = False,
         event: ScheduleEvent | None = None,
+        event_title : str | None = None
     ):
         super().__init__(parent, title=title, size=(420, 330))
         self.google_enabled = google_enabled
@@ -66,6 +67,8 @@ class EventDialog(wx.Dialog):
             if event.source == "google":
                 self.google_checkbox.SetLabel("Google Calendar event")
                 self.google_checkbox.SetValue(True)
+        elif event_title:
+            self.title_input.SetValue(event_title)
 
         rows = [
             ("Title", self.title_input),
@@ -982,7 +985,7 @@ class SchedulerFrame(wx.Frame):
             initial_hour = datetime.now().hour
         start_dt = datetime.combine(initial_day, datetime.now().time().replace(hour=initial_hour, minute=0, second=0, microsecond=0)).replace(tzinfo=local_tz())
         end_dt = start_dt + timedelta(hours=1)
-        event = ScheduleEvent(
+        '''event = ScheduleEvent(
             event_id=str(uuid.uuid4()),
             title=task.title,
             start=start_dt,
@@ -990,7 +993,10 @@ class SchedulerFrame(wx.Frame):
             source="local",
             description="",
             linkedTaskID=task.task_id,
-        )
+        )'''
+        event = self.new_event_dialog(initial_day, initial_hour, task.title)
+        if event is None:
+            return
         self.local_events.append(event)
         self.save()
         self.refresh_schedule()
@@ -998,10 +1004,11 @@ class SchedulerFrame(wx.Frame):
     def new_event_dialog(self, initial_day: date, initial_hour: int, eventTitle: str = "New Event") -> None | ScheduleEvent:
         dialog = EventDialog(
             self,
-            title=eventTitle,
+            title="Create New Event",
             initial_day=initial_day,
             initial_hour=initial_hour,
             google_enabled=self.google_client.is_connected(),
+            event_title=eventTitle
         )
         try:
             if dialog.ShowModal() != wx.ID_OK:
