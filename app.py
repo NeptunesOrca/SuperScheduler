@@ -34,6 +34,7 @@ class EventDialog(wx.Dialog):
         title: str,
         initial_day: date,
         initial_hour: int = 9,
+        initial_minute: int = 0,
         google_enabled: bool = False,
         event: ScheduleEvent | None = None,
         event_title : str | None = None
@@ -51,11 +52,13 @@ class EventDialog(wx.Dialog):
         self.date_input = wx.adv.DatePickerCtrl(panel)
         selected_day = event.start.date() if event else initial_day
         selected_hour = event.start.hour if event else initial_hour
+        selected_minute = event.start.minute if event else initial_minute
         end_hour = event.end.hour if event else min(initial_hour + 1, 23)
+        end_minute = event.end.minute if event else initial_minute
         self.date_input.SetValue(wx.DateTime.FromDMY(selected_day.day, selected_day.month - 1, selected_day.year))
-        self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:00")
-        self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:00")
-        self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:00")
+        self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:{initial_minute:02d}")
+        self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:{selected_minute:02d}")
+        self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:{end_minute:02d}")
         if event:
             self.end_input.SetValue(event.end.strftime("%H:%M"))
         self.description_input = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 70))
@@ -664,12 +667,15 @@ class TaskPanel(wx.Panel):
         self,
         parent: wx.Window,
         on_change: Callable[[], None],
-        on_create_event_from_task: Callable[[TaskItem], None] | None = None,
+        on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None] | None = None,
+        on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None] | None = None,
     ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
         self.on_change = on_change
         self.on_create_event_from_task = on_create_event_from_task
+        self.on_drop_task_to_schedule = on_drop_task_to_schedule
+        self.dragged_task: TaskItem | None = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         header = wx.StaticText(self, label="Tasks")
@@ -699,15 +705,25 @@ class TaskPanel(wx.Panel):
         self.task_list.Bind(wx.EVT_CONTEXT_MENU, self.on_task_right_click)
 
     def on_task_begin_drag(self, event: wx.MouseEvent) -> None:
+        selection = self.task_list.GetSelection()
+        if selection != wx.NOT_FOUND and selection < len(self.tasks):
+            self.dragged_task = self.tasks[selection]
+            if not self.task_list.HasCapture():
+                self.task_list.CaptureMouse()
         event.Skip()
 
     def on_task_drop(self, event: wx.MouseEvent) -> None:
+        if self.dragged_task is not None and self.on_drop_task_to_schedule is not None:
+            self.on_drop_task_to_schedule(self.dragged_task, wx.GetMousePosition())
+        self.dragged_task = None
+        if self.task_list.HasCapture():
+            self.task_list.ReleaseMouse()
         event.Skip()
 
     def on_task_double_click(self, event: wx.MouseEvent) -> None:
         selection = self.task_list.GetSelection()
         if selection != wx.NOT_FOUND and self.on_create_event_from_task is not None:
-            self.on_create_event_from_task(self.tasks[selection])
+            self.on_create_event_from_task(self.tasks[selection], None, None)
         event.Skip()
 
     def on_task_left_click(self, event: wx.MouseEvent) -> None:
@@ -822,7 +838,12 @@ class SchedulerFrame(wx.Frame):
         calendar_sizer.Add(self.month_calendar, 1, wx.EXPAND)
         self.calendar_panel.SetSizer(calendar_sizer)
         self.month_calendar.Hide()
-        self.task_panel = TaskPanel(self.body, self.save, self.create_event_from_task)
+        self.task_panel = TaskPanel(
+            self.body,
+            self.save,
+            self.create_event_from_task,
+            self.handle_task_drop_to_schedule,
+        )
         self.task_panel.set_tasks(self.tasks)
         self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
         self.body.SetMinimumPaneSize(TASK_PANEL_MIN_WIDTH)
@@ -978,35 +999,39 @@ class SchedulerFrame(wx.Frame):
         _weekday, days_in_month = calendar.monthrange(year, month)
         return date(year, month, min(month_start_value.day, days_in_month))
 
-    def create_event_from_task(self, task: TaskItem, initial_day: date | None = None, initial_hour: int | None = None) -> None:
+    def create_event_from_task(self, task: TaskItem, initial_day: date | None = None, initial_hour: int | None = None, initial_minute: int = 0) -> None:
         if initial_day is None:
             initial_day = date.today()
         if initial_hour is None:
             initial_hour = datetime.now().hour
-        start_dt = datetime.combine(initial_day, datetime.now().time().replace(hour=initial_hour, minute=0, second=0, microsecond=0)).replace(tzinfo=local_tz())
-        end_dt = start_dt + timedelta(hours=1)
-        '''event = ScheduleEvent(
-            event_id=str(uuid.uuid4()),
-            title=task.title,
-            start=start_dt,
-            end=end_dt,
-            source="local",
-            description="",
-            linkedTaskID=task.task_id,
-        )'''
-        event = self.new_event_dialog(initial_day, initial_hour, task.title)
-        if event is None:
-            return
-        self.local_events.append(event)
-        self.save()
-        self.refresh_schedule()
+        event = self.new_event_dialog(initial_day, initial_hour, initial_minute = initial_minute, eventTitle = task.title)
+        if event is not None:
+            event.linkedTaskID = task.task_id
 
-    def new_event_dialog(self, initial_day: date, initial_hour: int, eventTitle: str = "New Event") -> None | ScheduleEvent:
+    def handle_task_drop_to_schedule(self, task: TaskItem, screen_pos: wx.Point) -> None:
+        if not self.schedule.IsShown():
+            return
+
+        schedule_pos = self.schedule.ScreenToClient(screen_pos)
+        if not self.schedule.GetClientRect().Contains(schedule_pos):
+            return
+
+        unscrolled_pos = self.schedule.CalcUnscrolledPosition(schedule_pos)
+        day_index = self.schedule.day_index_from_x(unscrolled_pos.x)
+        minutes = self.schedule.minutes_from_y(unscrolled_pos.y)
+        hour = min(23, max(0, minutes // 60))
+        accurate_minute = min(59, max(0, minutes % 60))
+        approximate_minute = accurate_minute - (accurate_minute % 15)
+        target_day = self.schedule.week_start + timedelta(days=day_index)
+        self.create_event_from_task(task, target_day, hour, approximate_minute)
+
+    def new_event_dialog(self, initial_day: date, initial_hour: int, initial_minute: int = 0, eventTitle: str = "New Event") -> None | ScheduleEvent:
         dialog = EventDialog(
             self,
             title="Create New Event",
             initial_day=initial_day,
             initial_hour=initial_hour,
+            initial_minute=initial_minute,
             google_enabled=self.google_client.is_connected(),
             event_title=eventTitle
         )
