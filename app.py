@@ -794,12 +794,12 @@ class TaskPanel(wx.Panel):
             if not self.task_list.HasCapture():
                 self.task_list.CaptureMouse()
             if self.on_task_preview_move is not None:
-                self.on_task_preview_move(self.dragged_task, self.ClientToScreen(event.GetPosition()))
+                self.on_task_preview_move(self.dragged_task, wx.GetMousePosition())
         event.Skip()
 
     def on_task_drag_motion(self, event: wx.MouseEvent) -> None:
         if self.dragged_task is not None and event.LeftIsDown() and self.on_task_preview_move is not None:
-            self.on_task_preview_move(self.dragged_task, self.ClientToScreen(event.GetPosition()))
+            self.on_task_preview_move(self.dragged_task, wx.GetMousePosition())
         event.Skip()
 
     def on_task_drop(self, event: wx.MouseEvent) -> None:
