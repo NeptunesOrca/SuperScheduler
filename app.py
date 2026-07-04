@@ -155,6 +155,10 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.drag_original_start: datetime | None = None
         self.drag_original_end: datetime | None = None
         self.drag_anchor_offset_minutes = 0
+        self.preview_task: TaskItem | None = None
+        self.preview_day_index: int = 0
+        self.preview_start_minutes: int = 0
+        self.preview_duration_minutes: int = 60
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
@@ -235,6 +239,29 @@ class ScheduleCanvas(wx.ScrolledWindow):
             self.update_cursor(x, y)
         event.Skip()
 
+    def set_task_preview(self, task: TaskItem | None, screen_pos: wx.Point | None) -> None:
+        if task is None or screen_pos is None:
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        client_pt = self.ScreenToClient(screen_pos)
+        if not self.GetClientRect().Contains(client_pt):
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        x, y = self.CalcUnscrolledPosition(client_pt)
+        if x < self.time_width or y < self.header_height:
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        self.preview_task = task
+        self.preview_day_index = self.day_index_from_x(x)
+        self.preview_start_minutes = self.snap_to_grid(self.minutes_from_y(y))
+        self.Refresh()
+
     def on_left_up(self, event: wx.MouseEvent) -> None:
         if self.drag_started and self.pending_drag_event and self.drag_original_start and self.drag_original_end:
             if self.HasCapture():
@@ -248,6 +275,9 @@ class ScheduleCanvas(wx.ScrolledWindow):
                 selected_event.end = original_end
             self.Refresh()
         self.clear_drag_state()
+        if self.preview_task is not None:
+            self.preview_task = None
+            self.Refresh()
         event.Skip()
 
     def on_right_down(self, event: wx.MouseEvent) -> None:
@@ -391,6 +421,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.draw_headers(dc)
         self.draw_grid(dc)
         self.draw_events(dc)
+        self.draw_task_preview(dc)
 
     def draw_headers(self, dc: wx.DC) -> None:
         dc.SetPen(wx.Pen(wx.Colour("#d7dbe3"), 1))
@@ -451,6 +482,35 @@ class ScheduleCanvas(wx.ScrolledWindow):
             dc.SetTextForeground(wx.Colour("#455063"))
             dc.DrawText(f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}", x + 8, y + 21)
             del clip
+
+    def draw_task_preview(self, dc: wx.DC) -> None:
+        if self.preview_task is None:
+            return
+
+        width = self.day_width - 12
+        height = max(40, int(self.row_height) - 6)
+        x = self.time_width + self.preview_day_index * self.day_width + 6
+        y = self.header_height + int(self.preview_start_minutes / 60 * self.row_height) + 3
+        label_text = self.preview_task.title
+        duration_text = f"{self.preview_duration_minutes} min"
+
+        border_colour = wx.Colour(97, 160, 85)
+        fill_colour = wx.Colour(97, 160, 85, 80)
+        text_colour = wx.Colour(255, 255, 255)
+
+        dc.SetPen(wx.Pen(border_colour, 1))
+        dc.SetBrush(wx.Brush(fill_colour))
+        dc.DrawRoundedRectangle(x, y, width, height, 6)
+
+        title_font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        meta_font = wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+
+        dc.SetFont(title_font)
+        dc.SetTextForeground(text_colour)
+        dc.DrawText(label_text, x + 8, y + 6)
+
+        dc.SetFont(meta_font)
+        dc.DrawText(duration_text, x + 8, y + 23)
 
 
 class MonthCalendarCanvas(wx.ScrolledWindow):
@@ -636,6 +696,26 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
         self.draw_overflow_counts(dc, event_counts)
 
+    def draw_task_preview(self, dc: wx.DC) -> None:
+        if self.preview_task is None:
+            return
+
+        width = self.day_width - 12
+        height = max(28, int(self.row_height) - 6)
+        x = self.time_width + self.preview_day_index * self.day_width + 6
+        y = self.header_height + int(self.preview_start_minutes / 60 * self.row_height) + 3
+        colour = wx.Colour(97, 160, 85, 96)
+        try:
+            gc = wx.GraphicsContext.Create(dc)
+            brush = gc.CreateBrush(wx.Brush(colour))
+            gc.SetBrush(brush)
+            gc.SetPen(wx.Pen(wx.Colour(97, 160, 85), 1))
+            gc.DrawRoundedRectangle(x, y, width, height, 6)
+        except Exception:
+            dc.SetPen(wx.Pen(wx.Colour(97, 160, 85), 1))
+            dc.SetBrush(wx.Brush(wx.Colour(200, 230, 200)))
+            dc.DrawRoundedRectangle(x, y, width, height, 6)
+
     def count_events_by_day(self) -> dict[date, int]:
         counts: dict[date, int] = {}
         first_day = self.first_visible_day()
@@ -669,12 +749,14 @@ class TaskPanel(wx.Panel):
         on_change: Callable[[], None],
         on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None] | None = None,
         on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None] | None = None,
+        on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None] | None = None,
     ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
         self.on_change = on_change
         self.on_create_event_from_task = on_create_event_from_task
         self.on_drop_task_to_schedule = on_drop_task_to_schedule
+        self.on_task_preview_move = on_task_preview_move
         self.dragged_task: TaskItem | None = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -700,6 +782,7 @@ class TaskPanel(wx.Panel):
         self.task_list.Bind(wx.EVT_CHECKLISTBOX, self.toggle_task)
         self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_begin_drag)
         self.task_list.Bind(wx.EVT_LEFT_UP, self.on_task_drop)
+        self.task_list.Bind(wx.EVT_MOTION, self.on_task_drag_motion)
         self.task_list.Bind(wx.EVT_LEFT_DCLICK, self.on_task_double_click)
         self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_left_click)
         self.task_list.Bind(wx.EVT_CONTEXT_MENU, self.on_task_right_click)
@@ -710,14 +793,26 @@ class TaskPanel(wx.Panel):
             self.dragged_task = self.tasks[selection]
             if not self.task_list.HasCapture():
                 self.task_list.CaptureMouse()
+            if self.on_task_preview_move is not None:
+                self.on_task_preview_move(self.dragged_task, self.ClientToScreen(event.GetPosition()))
+        event.Skip()
+
+    def on_task_drag_motion(self, event: wx.MouseEvent) -> None:
+        if self.dragged_task is not None and event.LeftIsDown() and self.on_task_preview_move is not None:
+            self.on_task_preview_move(self.dragged_task, self.ClientToScreen(event.GetPosition()))
         event.Skip()
 
     def on_task_drop(self, event: wx.MouseEvent) -> None:
         if self.dragged_task is not None and self.on_drop_task_to_schedule is not None:
             self.on_drop_task_to_schedule(self.dragged_task, wx.GetMousePosition())
         self.dragged_task = None
-        if self.task_list.HasCapture():
-            self.task_list.ReleaseMouse()
+        if self.on_task_preview_move is not None:
+            self.on_task_preview_move(None, None)
+        try:
+            if self.task_list.HasCapture():
+                self.task_list.ReleaseMouse()
+        except wx.wxAssertionError:
+            pass
         event.Skip()
 
     def on_task_double_click(self, event: wx.MouseEvent) -> None:
@@ -843,6 +938,7 @@ class SchedulerFrame(wx.Frame):
             self.save,
             self.create_event_from_task,
             self.handle_task_drop_to_schedule,
+            self.schedule.set_task_preview,
         )
         self.task_panel.set_tasks(self.tasks)
         self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
