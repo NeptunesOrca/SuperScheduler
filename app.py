@@ -34,8 +34,10 @@ class EventDialog(wx.Dialog):
         title: str,
         initial_day: date,
         initial_hour: int = 9,
+        initial_minute: int = 0,
         google_enabled: bool = False,
         event: ScheduleEvent | None = None,
+        event_title : str | None = None
     ):
         super().__init__(parent, title=title, size=(420, 330))
         self.google_enabled = google_enabled
@@ -50,11 +52,13 @@ class EventDialog(wx.Dialog):
         self.date_input = wx.adv.DatePickerCtrl(panel)
         selected_day = event.start.date() if event else initial_day
         selected_hour = event.start.hour if event else initial_hour
+        selected_minute = event.start.minute if event else initial_minute
         end_hour = event.end.hour if event else min(initial_hour + 1, 23)
+        end_minute = event.end.minute if event else initial_minute
         self.date_input.SetValue(wx.DateTime.FromDMY(selected_day.day, selected_day.month - 1, selected_day.year))
-        self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:00")
-        self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:00")
-        self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:00")
+        self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:{initial_minute:02d}")
+        self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:{selected_minute:02d}")
+        self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:{end_minute:02d}")
         if event:
             self.end_input.SetValue(event.end.strftime("%H:%M"))
         self.description_input = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 70))
@@ -66,6 +70,8 @@ class EventDialog(wx.Dialog):
             if event.source == "google":
                 self.google_checkbox.SetLabel("Google Calendar event")
                 self.google_checkbox.SetValue(True)
+        elif event_title:
+            self.title_input.SetValue(event_title)
 
         rows = [
             ("Title", self.title_input),
@@ -111,6 +117,7 @@ class EventDialog(wx.Dialog):
                 end=end_dt,
                 source=self.event.source if self.event else "local",
                 description=self.description_input.GetValue().strip(),
+                linkedTaskID=self.event.linkedTaskID if self.event else None,
             ),
             self.google_checkbox.IsChecked() and self.google_enabled,
         )
@@ -148,6 +155,10 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.drag_original_start: datetime | None = None
         self.drag_original_end: datetime | None = None
         self.drag_anchor_offset_minutes = 0
+        self.preview_task: TaskItem | None = None
+        self.preview_day_index: int = 0
+        self.preview_start_minutes: int = 0
+        self.preview_duration_minutes: int = 60
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
@@ -228,6 +239,29 @@ class ScheduleCanvas(wx.ScrolledWindow):
             self.update_cursor(x, y)
         event.Skip()
 
+    def set_task_preview(self, task: TaskItem | None, screen_pos: wx.Point | None) -> None:
+        if task is None or screen_pos is None:
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        client_pt = self.ScreenToClient(screen_pos)
+        if not self.GetClientRect().Contains(client_pt):
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        x, y = self.CalcUnscrolledPosition(client_pt)
+        if x < self.time_width or y < self.header_height:
+            self.preview_task = None
+            self.Refresh()
+            return
+
+        self.preview_task = task
+        self.preview_day_index = self.day_index_from_x(x)
+        self.preview_start_minutes = self.floor_to_grid(self.minutes_from_y(y))
+        self.Refresh()
+
     def on_left_up(self, event: wx.MouseEvent) -> None:
         if self.drag_started and self.pending_drag_event and self.drag_original_start and self.drag_original_end:
             if self.HasCapture():
@@ -241,6 +275,9 @@ class ScheduleCanvas(wx.ScrolledWindow):
                 selected_event.end = original_end
             self.Refresh()
         self.clear_drag_state()
+        if self.preview_task is not None:
+            self.preview_task = None
+            self.Refresh()
         event.Skip()
 
     def on_right_down(self, event: wx.MouseEvent) -> None:
@@ -342,6 +379,9 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def snap_to_grid(self, minutes: int) -> int:
         return int(round(minutes / self.snap_minutes) * self.snap_minutes)
 
+    def floor_to_grid(self, minutes: int) -> int:
+        return minutes - (minutes % self.snap_minutes)
+
     def datetime_from_grid(self, day_index: int, minutes: int) -> datetime:
         event_day = self.week_start + timedelta(days=day_index)
         return datetime.combine(event_day, datetime.min.time()).replace(tzinfo=local_tz()) + timedelta(minutes=minutes)
@@ -384,6 +424,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.draw_headers(dc)
         self.draw_grid(dc)
         self.draw_events(dc)
+        self.draw_task_preview(dc)
 
     def draw_headers(self, dc: wx.DC) -> None:
         dc.SetPen(wx.Pen(wx.Colour("#d7dbe3"), 1))
@@ -444,6 +485,35 @@ class ScheduleCanvas(wx.ScrolledWindow):
             dc.SetTextForeground(wx.Colour("#455063"))
             dc.DrawText(f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}", x + 8, y + 21)
             del clip
+
+    def draw_task_preview(self, dc: wx.DC) -> None:
+        if self.preview_task is None:
+            return
+
+        width = self.day_width - 12
+        height = max(40, int(self.row_height) - 6)
+        x = self.time_width + self.preview_day_index * self.day_width + 6
+        y = self.header_height + int(self.preview_start_minutes / 60 * self.row_height) + 3
+        label_text = self.preview_task.title
+        duration_text = f"{self.preview_duration_minutes} min"
+
+        border_colour = wx.Colour(97, 160, 85)
+        fill_colour = wx.Colour(97, 160, 85, 80)
+        text_colour = wx.Colour(255, 255, 255)
+
+        dc.SetPen(wx.Pen(border_colour, 1))
+        dc.SetBrush(wx.Brush(fill_colour))
+        dc.DrawRoundedRectangle(x, y, width, height, 6)
+
+        title_font = wx.Font(8, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        meta_font = wx.Font(7, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+
+        dc.SetFont(title_font)
+        dc.SetTextForeground(text_colour)
+        dc.DrawText(label_text, x + 8, y + 6)
+
+        dc.SetFont(meta_font)
+        dc.DrawText(duration_text, x + 8, y + 23)
 
 
 class MonthCalendarCanvas(wx.ScrolledWindow):
@@ -629,6 +699,26 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
         self.draw_overflow_counts(dc, event_counts)
 
+    def draw_task_preview(self, dc: wx.DC) -> None:
+        if self.preview_task is None:
+            return
+
+        width = self.day_width - 12
+        height = max(28, int(self.row_height) - 6)
+        x = self.time_width + self.preview_day_index * self.day_width + 6
+        y = self.header_height + int(self.preview_start_minutes / 60 * self.row_height) + 3
+        colour = wx.Colour(97, 160, 85, 96)
+        try:
+            gc = wx.GraphicsContext.Create(dc)
+            brush = gc.CreateBrush(wx.Brush(colour))
+            gc.SetBrush(brush)
+            gc.SetPen(wx.Pen(wx.Colour(97, 160, 85), 1))
+            gc.DrawRoundedRectangle(x, y, width, height, 6)
+        except Exception:
+            dc.SetPen(wx.Pen(wx.Colour(97, 160, 85), 1))
+            dc.SetBrush(wx.Brush(wx.Colour(200, 230, 200)))
+            dc.DrawRoundedRectangle(x, y, width, height, 6)
+
     def count_events_by_day(self) -> dict[date, int]:
         counts: dict[date, int] = {}
         first_day = self.first_visible_day()
@@ -656,10 +746,21 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
 
 class TaskPanel(wx.Panel):
-    def __init__(self, parent: wx.Window, on_change: Callable[[], None]):
+    def __init__(
+        self,
+        parent: wx.Window,
+        on_change: Callable[[], None],
+        on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None] | None = None,
+        on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None] | None = None,
+        on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None] | None = None,
+    ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
         self.on_change = on_change
+        self.on_create_event_from_task = on_create_event_from_task
+        self.on_drop_task_to_schedule = on_drop_task_to_schedule
+        self.on_task_preview_move = on_task_preview_move
+        self.dragged_task: TaskItem | None = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         header = wx.StaticText(self, label="Tasks")
@@ -682,6 +783,53 @@ class TaskPanel(wx.Panel):
         delete_button.Bind(wx.EVT_BUTTON, self.delete_selected)
         self.task_input.Bind(wx.EVT_TEXT_ENTER, self.add_task)
         self.task_list.Bind(wx.EVT_CHECKLISTBOX, self.toggle_task)
+        self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_begin_drag)
+        self.task_list.Bind(wx.EVT_LEFT_UP, self.on_task_drop)
+        self.task_list.Bind(wx.EVT_MOTION, self.on_task_drag_motion)
+        self.task_list.Bind(wx.EVT_LEFT_DCLICK, self.on_task_double_click)
+        self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_left_click)
+        self.task_list.Bind(wx.EVT_CONTEXT_MENU, self.on_task_right_click)
+
+    def on_task_begin_drag(self, event: wx.MouseEvent) -> None:
+        selection = self.task_list.GetSelection()
+        if selection != wx.NOT_FOUND and selection < len(self.tasks):
+            self.dragged_task = self.tasks[selection]
+            if not self.task_list.HasCapture():
+                self.task_list.CaptureMouse()
+            if self.on_task_preview_move is not None:
+                self.on_task_preview_move(self.dragged_task, wx.GetMousePosition())
+        event.Skip()
+
+    def on_task_drag_motion(self, event: wx.MouseEvent) -> None:
+        if self.dragged_task is not None and event.LeftIsDown() and self.on_task_preview_move is not None:
+            self.on_task_preview_move(self.dragged_task, wx.GetMousePosition())
+        event.Skip()
+
+    def on_task_drop(self, event: wx.MouseEvent) -> None:
+        if self.dragged_task is not None and self.on_drop_task_to_schedule is not None:
+            self.on_drop_task_to_schedule(self.dragged_task, wx.GetMousePosition())
+        self.dragged_task = None
+        if self.on_task_preview_move is not None:
+            self.on_task_preview_move(None, None)
+        try:
+            if self.task_list.HasCapture():
+                self.task_list.ReleaseMouse()
+        except wx.wxAssertionError:
+            pass
+        event.Skip()
+
+    def on_task_double_click(self, event: wx.MouseEvent) -> None:
+        selection = self.task_list.GetSelection()
+        if selection != wx.NOT_FOUND and self.on_create_event_from_task is not None:
+            self.on_create_event_from_task(self.tasks[selection], None, None)
+        event.Skip()
+
+    def on_task_left_click(self, event: wx.MouseEvent) -> None:
+        event.Skip()
+
+    def on_task_right_click(self, event: wx.ContextMenuEvent) -> None:
+        menu = wx.Menu()
+        self.task_list.PopupMenu(menu, event.GetPosition())
 
     def set_tasks(self, tasks: list[TaskItem]) -> None:
         self.tasks = tasks
@@ -734,6 +882,18 @@ class SchedulerFrame(wx.Frame):
         self.refresh_title()
         self.refresh_schedule()
 
+    def getEventByID(self, event_id: str) -> ScheduleEvent | None:
+        for event in self.local_events + self.google_events:
+            if event.event_id == event_id:
+                return event
+        return None
+    
+    def getTaskByID(self, task_id: str) -> TaskItem | None:
+        for task in self.tasks:
+            if task.task_id == task_id:
+                return task
+        return None
+
     def build_ui(self) -> None:
         root = wx.Panel(self)
         root_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -761,14 +921,14 @@ class SchedulerFrame(wx.Frame):
         calendar_sizer = wx.BoxSizer(wx.VERTICAL)
         self.schedule = ScheduleCanvas(
             self.calendar_panel,
-            self.open_event_dialog,
+            self.new_event_dialog,
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
             self.delete_event,
         )
         self.month_calendar = MonthCalendarCanvas(
             self.calendar_panel,
-            self.open_event_dialog,
+            self.new_event_dialog,
             self.open_existing_event_dialog,
             self.delete_event,
         )
@@ -776,7 +936,13 @@ class SchedulerFrame(wx.Frame):
         calendar_sizer.Add(self.month_calendar, 1, wx.EXPAND)
         self.calendar_panel.SetSizer(calendar_sizer)
         self.month_calendar.Hide()
-        self.task_panel = TaskPanel(self.body, self.save)
+        self.task_panel = TaskPanel(
+            self.body,
+            self.save,
+            self.create_event_from_task,
+            self.handle_task_drop_to_schedule,
+            self.schedule.set_task_preview,
+        )
         self.task_panel.set_tasks(self.tasks)
         self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
         self.body.SetMinimumPaneSize(TASK_PANEL_MIN_WIDTH)
@@ -788,7 +954,7 @@ class SchedulerFrame(wx.Frame):
         previous_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(-1))
         today_button.Bind(wx.EVT_BUTTON, lambda _event: self.set_today())
         next_button.Bind(wx.EVT_BUTTON, lambda _event: self.change_period(1))
-        new_button.Bind(wx.EVT_BUTTON, lambda _event: self.open_event_dialog(date.today(), 9))
+        new_button.Bind(wx.EVT_BUTTON, lambda _event: self.new_event_dialog(date.today(), 9))
         sync_button.Bind(wx.EVT_BUTTON, lambda _event: self.sync_google())
         connect_button.Bind(wx.EVT_BUTTON, lambda _event: self.connect_google())
 
@@ -813,7 +979,7 @@ class SchedulerFrame(wx.Frame):
         view_menu.Check(self.task_panel_right_id, True)
         menubar.Append(view_menu, "View")
         self.SetMenuBar(menubar)
-        self.Bind(wx.EVT_MENU, lambda _event: self.open_event_dialog(date.today(), 9), id=wx.ID_NEW)
+        self.Bind(wx.EVT_MENU, lambda _event: self.new_event_dialog(date.today(), 9), id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, lambda _event: self.save(), id=wx.ID_SAVE)
         self.Bind(wx.EVT_MENU, lambda _event: self.Close(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, lambda _event: self.set_calendar_view(VIEW_WEEK), id=self.week_view_id)
@@ -932,22 +1098,50 @@ class SchedulerFrame(wx.Frame):
         _weekday, days_in_month = calendar.monthrange(year, month)
         return date(year, month, min(month_start_value.day, days_in_month))
 
-    def open_event_dialog(self, initial_day: date, initial_hour: int) -> None:
+    def create_event_from_task(self, task: TaskItem, initial_day: date | None = None, initial_hour: int | None = None, initial_minute: int = 0) -> None:
+        if initial_day is None:
+            initial_day = date.today()
+        if initial_hour is None:
+            initial_hour = datetime.now().hour
+        event = self.new_event_dialog(initial_day, initial_hour, initial_minute = initial_minute, eventTitle = task.title)
+        if event is not None:
+            event.linkedTaskID = task.task_id
+
+    def handle_task_drop_to_schedule(self, task: TaskItem, screen_pos: wx.Point) -> None:
+        if not self.schedule.IsShown():
+            return
+
+        schedule_pos = self.schedule.ScreenToClient(screen_pos)
+        if not self.schedule.GetClientRect().Contains(schedule_pos):
+            return
+
+        unscrolled_pos = self.schedule.CalcUnscrolledPosition(schedule_pos)
+        day_index = self.schedule.day_index_from_x(unscrolled_pos.x)
+        minutes = self.schedule.minutes_from_y(unscrolled_pos.y)
+        hour = min(23, max(0, minutes // 60))
+        accurate_minute = min(59, max(0, minutes % 60))
+        approximate_minute = accurate_minute - (accurate_minute % 15)
+        target_day = self.schedule.week_start + timedelta(days=day_index)
+        self.create_event_from_task(task, target_day, hour, approximate_minute)
+
+    def new_event_dialog(self, initial_day: date, initial_hour: int, initial_minute: int = 0, eventTitle: str = "New Event") -> None | ScheduleEvent:
         dialog = EventDialog(
             self,
-            "New event",
+            title="Create New Event",
             initial_day=initial_day,
             initial_hour=initial_hour,
+            initial_minute=initial_minute,
             google_enabled=self.google_client.is_connected(),
+            event_title=eventTitle
         )
         try:
             if dialog.ShowModal() != wx.ID_OK:
-                return
+                return None
             try:
                 event, add_to_google = dialog.get_event()
             except ValueError as exc:
                 wx.MessageBox(str(exc), "Event needs a fix", wx.OK | wx.ICON_WARNING)
-                return
+                return None
 
             if add_to_google:
                 try:
@@ -955,11 +1149,12 @@ class SchedulerFrame(wx.Frame):
                     self.google_events.append(created)
                 except Exception as exc:
                     wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
-                    return
+                    return None
             else:
                 self.local_events.append(event)
             self.save()
             self.refresh_schedule()
+            return event
         finally:
             dialog.Destroy()
 

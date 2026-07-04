@@ -16,11 +16,12 @@ class TaskItem:
     @classmethod
     def from_dict(cls, payload: dict) -> "TaskItem":
         return cls(
-            task_id=payload.get("task_id", str(uuid.uuid4())),
-            title=payload.get("title", "Untitled task"),
-            done=payload.get("done", False),
-            due=parse_datetime_or_none(payload["due"]),
-            priority=payload.get("priority", 0),
+            # Field       | Value                                     | Default
+            task_id=        payload.get("task_id",                      str(uuid.uuid4())),
+            title=          payload.get("title",                        "Untitled task"),
+            done=           payload.get("done",                         False),
+            due=            parse_datetime_or_none(payload["due"]),     # None (via parse_datetime_or_none)
+            priority=       payload.get("priority",                     0),
         )
 
     def to_dict(self) -> dict:
