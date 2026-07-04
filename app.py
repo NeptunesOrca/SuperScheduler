@@ -259,7 +259,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
 
         self.preview_task = task
         self.preview_day_index = self.day_index_from_x(x)
-        self.preview_start_minutes = self.snap_to_grid(self.minutes_from_y(y))
+        self.preview_start_minutes = self.floor_to_grid(self.minutes_from_y(y))
         self.Refresh()
 
     def on_left_up(self, event: wx.MouseEvent) -> None:
@@ -378,6 +378,9 @@ class ScheduleCanvas(wx.ScrolledWindow):
 
     def snap_to_grid(self, minutes: int) -> int:
         return int(round(minutes / self.snap_minutes) * self.snap_minutes)
+
+    def floor_to_grid(self, minutes: int) -> int:
+        return minutes - (minutes % self.snap_minutes)
 
     def datetime_from_grid(self, day_index: int, minutes: int) -> datetime:
         event_day = self.week_start + timedelta(days=day_index)
