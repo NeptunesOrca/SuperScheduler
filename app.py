@@ -10,7 +10,7 @@ from typing import Callable
 import wx
 import wx.adv
 
-from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text
+from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
@@ -302,13 +302,14 @@ class ScheduleCanvas(wx.ScrolledWindow):
         delete_id = wx.Window.NewControlId()
         menu.Append(new_id, "New event")
         menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
-        
+
         if selected_event:
             menu.AppendSeparator()
             menu.Append(edit_id, "Edit event")
             menu.Append(delete_id, "Delete event")        
             menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
             menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
+
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -1121,8 +1122,7 @@ class SchedulerFrame(wx.Frame):
         day_index = self.schedule.day_index_from_x(unscrolled_pos.x)
         minutes = self.schedule.minutes_from_y(unscrolled_pos.y)
         hour = min(23, max(0, minutes // 60))
-        accurate_minute = min(59, max(0, minutes % 60))
-        approximate_minute = accurate_minute - (accurate_minute % 15)
+        approximate_minute = rounded_quarter_hour(minutes)
         target_day = self.schedule.week_start + timedelta(days=day_index)
         self.create_event_from_task(task, target_day, hour, approximate_minute)
 

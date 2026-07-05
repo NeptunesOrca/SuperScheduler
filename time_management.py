@@ -38,3 +38,7 @@ def parse_time_text(raw_value: str) -> time:
         except ValueError:
             pass
     raise ValueError("Use HH:MM, such as 09:30 or 17:00.")
+
+def rounded_quarter_hour(minute: int) -> int:
+    accurate_minute = min(59, max(0, minute % 60)) # ensures minute is between 0 and 59
+    return accurate_minute - (accurate_minute % 15)
