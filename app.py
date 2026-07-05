@@ -287,9 +287,6 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def on_right_down(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
         selected_event = self.hit_test_event(x, y)
-        if not selected_event:
-            event.Skip()
-            return
 
         if self.HasCapture():
             self.ReleaseMouse()
@@ -304,13 +301,14 @@ class ScheduleCanvas(wx.ScrolledWindow):
         new_id = wx.Window.NewControlId()
         delete_id = wx.Window.NewControlId()
         menu.Append(new_id, "New event")
-        menu.AppendSeparator()
-        menu.Append(edit_id, "Edit event")
-        menu.Append(delete_id, "Delete event")        
-
-        menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour), id=new_id)
-        menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
-        menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
+        menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
+        
+        if selected_event:
+            menu.AppendSeparator()
+            menu.Append(edit_id, "Edit event")
+            menu.Append(delete_id, "Delete event")        
+            menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
+            menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
         self.PopupMenu(menu)
         menu.Destroy()
 
