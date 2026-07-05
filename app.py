@@ -10,7 +10,7 @@ from typing import Callable
 import wx
 import wx.adv
 
-from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour
+from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour, minutes_to_hour
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
@@ -293,7 +293,8 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.clear_drag_state()
 
         day_index = self.day_index_from_x(x)
-        hour = min(23, max(0, self.minutes_from_y(y) // 60))
+        minute = self.minutes_from_y(y)
+        hour = minutes_to_hour(minute)
         click_day = self.week_start + timedelta(days=day_index)
 
         menu = wx.Menu()
@@ -1121,7 +1122,7 @@ class SchedulerFrame(wx.Frame):
         unscrolled_pos = self.schedule.CalcUnscrolledPosition(schedule_pos)
         day_index = self.schedule.day_index_from_x(unscrolled_pos.x)
         minutes = self.schedule.minutes_from_y(unscrolled_pos.y)
-        hour = min(23, max(0, minutes // 60))
+        hour = minutes_to_hour(minutes)
         approximate_minute = rounded_quarter_hour(minutes)
         target_day = self.schedule.week_start + timedelta(days=day_index)
         self.create_event_from_task(task, target_day, hour, approximate_minute)
