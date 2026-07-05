@@ -56,6 +56,8 @@ class EventDialog(wx.Dialog):
         end_hour = event.end.hour if event else min(initial_hour + 1, 23)
         end_minute = event.end.minute if event else initial_minute
         linked_task_id = str(event.linkedTaskID) if (event and event.linkedTaskID is not None) else "None"
+        # display for linked task id (read-only)
+        linked_task_label = wx.StaticText(panel, label=linked_task_id)
         self.date_input.SetValue(wx.DateTime.FromDMY(selected_day.day, selected_day.month - 1, selected_day.year))
         self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:{initial_minute:02d}")
         self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:{selected_minute:02d}")
@@ -81,7 +83,7 @@ class EventDialog(wx.Dialog):
             ("Ends", self.end_input),
             ("Notes", self.description_input),
             ("", self.google_checkbox),
-            ("Linked Task: %s{linkec_task_id}"),
+            ("Linked Task", linked_task_label),
         ]
         for label, control in rows:
             form.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
