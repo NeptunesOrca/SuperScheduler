@@ -34,18 +34,18 @@ MODE_RESIZE_EVENT_END = "resize-end"
 MODE_MOVE_OR_SELECT = "move-select"
 
 # Colours
-STANDARD_GREEN_DARK = wx.Colour("#61a765")
-STANDARD_GREEN_LIGHT = wx.Colour("#e9f6e8")
-STANDARD_BLUE_DARK = wx.Colour("#5797d7")
-STANDARD_BLUE_LIGHT = wx.Colour("#d9ecff")
-STANDARD_PURPLE_DARK = wx.Colour("#7b57d7")
-STANDARD_PURPLE_LIGHT = wx.Colour("#e4d9ff")
-STANDARD_YELLOW_DARK = wx.Colour("#d7bf57")
-STANDARD_YELLOW_LIGHT = wx.Colour("#fff8d9")
-STANDARD_ORANGE_DARK = wx.Colour("#d79757")
-STANDARD_ORANGE_LIGHT = wx.Colour("#ffecd9")
-STANDARD_BLACK = wx.Colour("#424242")
-BACKGROUND_COLOUR = wx.Colour("#f7f8fb")
+STANDARD_GREEN_DARK = "#61a765"
+STANDARD_GREEN_LIGHT = "#e9f6e8"
+STANDARD_BLUE_DARK = "#5797d7"
+STANDARD_BLUE_LIGHT = "#d9ecff"
+STANDARD_PURPLE_DARK = "#7b57d7"
+STANDARD_PURPLE_LIGHT = "#e4d9ff"
+STANDARD_YELLOW_DARK = "#d7bf57"
+STANDARD_YELLOW_LIGHT = "#fff8d9"
+STANDARD_ORANGE_DARK = "#d79757"
+STANDARD_ORANGE_LIGHT = "#ffecd9"
+STANDARD_BLACK = "#424242"
+BACKGROUND_COLOUR = "#f7f8fb"
 STANDARD_EVENT_FILL = STANDARD_GREEN_LIGHT
 STANDARD_EVENT_BORDER = STANDARD_GREEN_DARK
 TASK_EVENT_FILL = STANDARD_BLUE_LIGHT
@@ -513,14 +513,14 @@ class ScheduleCanvas(wx.ScrolledWindow):
             height = rect.GetHeight()
 
             # Colours based on event type
-            fill = STANDARD_EVENT_FILL
-            border = STANDARD_EVENT_BORDER
+            fill = wx.Colour(STANDARD_EVENT_FILL)
+            border = wx.Colour(STANDARD_EVENT_BORDER)
             if event.linkedTaskID is not None:
-                fill = TASK_EVENT_FILL
-                border = TASK_EVENT_BORDER
+                fill = wx.Colour(TASK_EVENT_FILL)
+                border = wx.Colour(TASK_EVENT_BORDER)
             elif event.source == "google":
-                fill = GOOGLE_LINKED_EVENT_FILL
-                border = GOOGLE_LINKED_EVENT_BORDER
+                fill = wx.Colour(GOOGLE_LINKED_EVENT_FILL)
+                border = wx.Colour(GOOGLE_LINKED_EVENT_BORDER)
 
             if (self.selected_event is event):
                 swap = fill
