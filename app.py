@@ -259,13 +259,19 @@ class ScheduleCanvas(wx.ScrolledWindow):
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
         hit_result = self.hit_test_event_part(x, y)
         if hit_result:
-            selected_event, mode = hit_result
-            self.pending_drag_event = selected_event
+            self.selected_event, mode = hit_result
+            self.pending_drag_event = self.selected_event
             self.pending_drag_mode = mode
             self.pending_drag_pos = (x, y)
-            self.drag_original_start = selected_event.start
-            self.drag_original_end = selected_event.end
-            self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(selected_event.start, y))
+            self.drag_original_start = self.selected_event.start
+            self.drag_original_end = self.selected_event.end
+            self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(self.selected_event.start, y))
+            print(f"Selected event: {self.selected_event.title} (ID: {self.selected_event.event_id})")
+            self.Refresh()
+        else:
+            if self.selected_event is not None:
+                self.selected_event = None
+                self.Refresh()
         event.Skip()
 
     def on_motion(self, event: wx.MouseEvent) -> None:
@@ -525,7 +531,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
             if (self.selected_event is event):
                 swap = fill
                 fill = border
-                border = swap
+                border = wx.Colour(STANDARD_BLACK)
 
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
