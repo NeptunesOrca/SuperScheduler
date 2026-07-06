@@ -511,8 +511,18 @@ class ScheduleCanvas(wx.ScrolledWindow):
             y = rect.GetY()
             width = rect.GetWidth()
             height = rect.GetHeight()
-            fill = GOOGLE_LINKED_EVENT_FILL if event.source == "google" else STANDARD_EVENT_FILL
-            border = GOOGLE_LINKED_EVENT_BORDER if event.source == "google" else STANDARD_EVENT_BORDER
+
+            # Colours based on event type
+            fill = STANDARD_EVENT_FILL
+            border = STANDARD_EVENT_BORDER
+            if event.linkedTaskID is not None:
+                fill = TASK_EVENT_FILL
+                border = TASK_EVENT_BORDER
+            elif event.source == "google":
+                fill = GOOGLE_LINKED_EVENT_FILL
+                border = GOOGLE_LINKED_EVENT_BORDER
+
+            
 
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
