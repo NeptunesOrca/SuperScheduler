@@ -137,32 +137,19 @@ class ScheduleCanvas(wx.ScrolledWindow):
         on_delete_event: Callable[[ScheduleEvent], None],
     ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL | wx.HSCROLL)
+        # Window Settings
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
         self.SetScrollRate(10, 10)
+        # Event State
         self.week_start = start_of_week()
         self.events: list[ScheduleEvent] = []
-        self.on_new_event = on_new_event
-        self.on_edit_event = on_edit_event
-        self.on_event_changed = on_event_changed
-        self.on_delete_event = on_delete_event
-        self.header_height = 58
-        self.time_width = 72
-        self.row_height = 58
-        self.day_width = 150
-        self.edge_margin = 8
-        self.snap_minutes = 15
-        self.min_duration_minutes = 15
-        self.pending_drag_event: ScheduleEvent | None = None
-        self.pending_drag_mode = ""
-        self.pending_drag_pos: tuple[int, int] | None = None
-        self.drag_started = False
-        self.drag_original_start: datetime | None = None
-        self.drag_original_end: datetime | None = None
-        self.drag_anchor_offset_minutes = 0
+        self.selected_event: ScheduleEvent | None = None
+        # Task Previews
         self.preview_task: TaskItem | None = None
         self.preview_day_index: int = 0
         self.preview_start_minutes: int = 0
         self.preview_duration_minutes: int = 60
+        # Controls
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
@@ -170,6 +157,27 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.Bind(wx.EVT_LEFT_UP, self.on_left_up)
         self.Bind(wx.EVT_MOTION, self.on_motion)
         self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
+        # Drag State
+        self.pending_drag_event: ScheduleEvent | None = None
+        self.pending_drag_mode = ""
+        self.pending_drag_pos: tuple[int, int] | None = None
+        self.drag_started = False
+        self.drag_original_start: datetime | None = None
+        self.drag_original_end: datetime | None = None
+        self.drag_anchor_offset_minutes = 0
+        # Callables
+        self.on_new_event = on_new_event
+        self.on_edit_event = on_edit_event
+        self.on_event_changed = on_event_changed
+        self.on_delete_event = on_delete_event
+        # Layout Variables
+        self.header_height = 58
+        self.time_width = 72
+        self.row_height = 58
+        self.day_width = 150
+        self.edge_margin = 8
+        self.snap_minutes = 15
+        self.min_duration_minutes = 15
 
     def set_week(self, week_start: date) -> None:
         self.week_start = week_start
@@ -304,7 +312,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         menu.Append(new_id, "New event")
         menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
 
-        if selected_event:
+        if selected_event is not None:
             menu.AppendSeparator()
             menu.Append(edit_id, "Edit event")
             menu.Append(delete_id, "Delete event")        
@@ -534,13 +542,14 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
         today = date.today()
         self.month_start = date(today.year, today.month, 1)
         self.events: list[ScheduleEvent] = []
+        self.selected_event : ScheduleEvent | None = None
         self.on_new_event = on_new_event
         self.on_edit_event = on_edit_event
         self.on_delete_event = on_delete_event
         self.header_height = 42
         self.cell_width = 142
         self.cell_height = 112
-        self.day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        self.day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] # No Monwednesday :(
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)
         self.Bind(wx.EVT_LEFT_DCLICK, self.on_double_click)
@@ -565,6 +574,11 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
         self.cell_width = max(118, available_width // 7)
         self.cell_height = max(96, (max(self.GetClientSize().height, 620) - self.header_height) // 6)
         self.SetVirtualSize((self.cell_width * 7, self.header_height + self.cell_height * 6))
+
+    def on_left_down(self, event: wx.MouseEvent) -> None:
+        x, y = self.CalcUnscrolledPosition(event.GetPosition())
+        self.selected_event = self.hit_test_event(x, y)
+        print(f"Selected event: {self.selected_event.title if self.selected_event else 'None'}")
 
     def on_double_click(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
