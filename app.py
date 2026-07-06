@@ -27,10 +27,33 @@ TASK_PANEL_DEFAULT_WIDTH = 300
 VIEW_WEEK = "week"
 VIEW_MONTH = "month"
 
+# Modes
 MODE_NA = ""
 MODE_RESIZE_EVENT_START = "resize-start"
 MODE_RESIZE_EVENT_END = "resize-end"
 MODE_MOVE_OR_SELECT = "move-select"
+
+# Colours
+STANDARD_GREEN_DARK = "#61a765"
+STANDARD_GREEN_LIGHT = "#e9f6e8"
+STANDARD_BLUE_DARK = "#5797d7"
+STANDARD_BLUE_LIGHT = "#d9ecff"
+STANDARD_PURPLE_DARK = "#7b57d7"
+STANDARD_PURPLE_LIGHT = "#e4d9ff"
+STANDARD_YELLOW_DARK = "#d7bf57"
+STANDARD_YELLOW_LIGHT = "#fff8d9"
+STANDARD_ORANGE_DARK = "#d79757"
+STANDARD_ORANGE_LIGHT = "#ffecd9"
+STANDARD_BLACK = "#424242"
+BACKGROUND_COLOUR = "#f7f8fb"
+STANDARD_EVENT_FILL = STANDARD_GREEN_LIGHT
+STANDARD_EVENT_BORDER = STANDARD_GREEN_DARK
+TASK_EVENT_FILL = STANDARD_BLUE_LIGHT
+TASK_EVENT_BORDER = STANDARD_BLUE_DARK
+GOOGLE_LINKED_EVENT_FILL = STANDARD_YELLOW_LIGHT
+GOOGLE_LINKED_EVENT_BORDER = STANDARD_YELLOW_DARK
+#PRIORITY_EVENT_FILL = STANDARD_EVENT_FILL
+#PRIORITY_EVENT_BORDER = STANDARD_PURPLE_DARK
 
 
 class EventDialog(wx.Dialog):
@@ -236,13 +259,18 @@ class ScheduleCanvas(wx.ScrolledWindow):
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
         hit_result = self.hit_test_event_part(x, y)
         if hit_result:
-            selected_event, mode = hit_result
-            self.pending_drag_event = selected_event
+            self.selected_event, mode = hit_result
+            self.pending_drag_event = self.selected_event
             self.pending_drag_mode = mode
             self.pending_drag_pos = (x, y)
-            self.drag_original_start = selected_event.start
-            self.drag_original_end = selected_event.end
-            self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(selected_event.start, y))
+            self.drag_original_start = self.selected_event.start
+            self.drag_original_end = self.selected_event.end
+            self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(self.selected_event.start, y))
+            self.Refresh()
+        else:
+            if self.selected_event is not None:
+                self.selected_event = None
+                self.Refresh()
         event.Skip()
 
     def on_motion(self, event: wx.MouseEvent) -> None:
@@ -436,7 +464,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def on_paint(self, _event: wx.PaintEvent) -> None:
         dc = wx.AutoBufferedPaintDC(self)
         self.PrepareDC(dc)
-        dc.SetBackground(wx.Brush(wx.Colour("#f7f8fb")))
+        dc.SetBackground(wx.Brush(BACKGROUND_COLOUR))
         dc.Clear()
 
         self.draw_headers(dc)
@@ -488,8 +516,20 @@ class ScheduleCanvas(wx.ScrolledWindow):
             y = rect.GetY()
             width = rect.GetWidth()
             height = rect.GetHeight()
-            fill = wx.Colour("#d9ecff") if event.source == "google" else wx.Colour("#e9f6e8")
-            border = wx.Colour("#5797d7") if event.source == "google" else wx.Colour("#61a765")
+
+            # Colours based on event type
+            fill = wx.Colour(STANDARD_EVENT_FILL)
+            border = wx.Colour(STANDARD_EVENT_BORDER)
+            if event.linkedTaskID is not None:
+                fill = wx.Colour(TASK_EVENT_FILL)
+                border = wx.Colour(TASK_EVENT_BORDER)
+            elif event.source == "google":
+                fill = wx.Colour(GOOGLE_LINKED_EVENT_FILL)
+                border = wx.Colour(GOOGLE_LINKED_EVENT_BORDER)
+
+            if (self.selected_event is event):
+                fill = border
+                border = wx.Colour(STANDARD_BLACK)
 
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
