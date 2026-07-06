@@ -27,10 +27,24 @@ TASK_PANEL_DEFAULT_WIDTH = 300
 VIEW_WEEK = "week"
 VIEW_MONTH = "month"
 
+# Modes
 MODE_NA = ""
 MODE_RESIZE_EVENT_START = "resize-start"
 MODE_RESIZE_EVENT_END = "resize-end"
 MODE_MOVE_OR_SELECT = "move-select"
+
+# Colours
+BACKGROUND_COLOUR = wx.Colour("#f7f8fb")
+STANDARD_EVENT_FILL = wx.Colour("#e9f6e8")
+STANDARD_EVENT_BORDER = wx.Colour("#61a765")
+#TASK_EVENT_FILL = wx.Colour("#d9ecff")
+#TASK_EVENT_BORDER = wx.Colour("#5797d7")
+GOOGLE_LINKED_EVENT_FILL = wx.Colour("#d9ecff")
+GOOGLE_LINKED_EVENT_BORDER = wx.Colour("#5797d7")
+#SELECTED_EVENT_FILL = STANDARD_EVENT_FILL
+SELECTED_EVENT_BORDER = wx.Colour("#000000")
+#PRIORITY_EVENT_FILL = STANDARD_EVENT_FILL
+PRIORITY_EVENT_BORDER = wx.Colour("#5797d7")
 
 
 class EventDialog(wx.Dialog):
@@ -436,7 +450,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def on_paint(self, _event: wx.PaintEvent) -> None:
         dc = wx.AutoBufferedPaintDC(self)
         self.PrepareDC(dc)
-        dc.SetBackground(wx.Brush(wx.Colour("#f7f8fb")))
+        dc.SetBackground(wx.Brush(BACKGROUND_COLOUR))
         dc.Clear()
 
         self.draw_headers(dc)
@@ -488,8 +502,8 @@ class ScheduleCanvas(wx.ScrolledWindow):
             y = rect.GetY()
             width = rect.GetWidth()
             height = rect.GetHeight()
-            fill = wx.Colour("#d9ecff") if event.source == "google" else wx.Colour("#e9f6e8")
-            border = wx.Colour("#5797d7") if event.source == "google" else wx.Colour("#61a765")
+            fill = GOOGLE_LINKED_EVENT_FILL if event.source == "google" else STANDARD_EVENT_FILL
+            border = GOOGLE_LINKED_EVENT_BORDER if event.source == "google" else STANDARD_EVENT_BORDER
 
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
