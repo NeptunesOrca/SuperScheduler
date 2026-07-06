@@ -46,6 +46,8 @@ STANDARD_ORANGE_DARK = "#d79757"
 STANDARD_ORANGE_LIGHT = "#ffecd9"
 STANDARD_BLACK = "#424242"
 BACKGROUND_COLOUR = "#f7f8fb"
+DEFAULT_TEXT = "#20242d"
+SECONDARY_TEXT = "#455063"
 STANDARD_EVENT_FILL = STANDARD_GREEN_LIGHT
 STANDARD_EVENT_BORDER = STANDARD_GREEN_DARK
 TASK_EVENT_FILL = STANDARD_BLUE_LIGHT
@@ -464,7 +466,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
     def on_paint(self, _event: wx.PaintEvent) -> None:
         dc = wx.AutoBufferedPaintDC(self)
         self.PrepareDC(dc)
-        dc.SetBackground(wx.Brush(BACKGROUND_COLOUR))
+        dc.SetBackground(wx.Brush(wx.Colour(BACKGROUND_COLOUR)))
         dc.Clear()
 
         self.draw_headers(dc)
@@ -484,7 +486,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
             x = self.time_width + day_index * self.day_width
             dc.DrawLine(x, 0, x, self.header_height + self.row_height * 24)
             dc.SetFont(label_font)
-            dc.SetTextForeground(wx.Colour("#222733"))
+            dc.SetTextForeground(wx.Colour(DEFAULT_TEXT))
             dc.DrawText(current_day.strftime("%a"), x + 10, 10)
             dc.SetFont(small_font)
             dc.SetTextForeground(wx.Colour("#5f6776"))
@@ -537,10 +539,10 @@ class ScheduleCanvas(wx.ScrolledWindow):
 
             clip = wx.DCClipper(dc, x + 6, y + 4, width - 12, height - 8)
             dc.SetFont(title_font)
-            dc.SetTextForeground(wx.Colour("#20242d"))
+            dc.SetTextForeground(wx.Colour(DEFAULT_TEXT))
             dc.DrawText(event.title, x + 8, y + 5)
             dc.SetFont(meta_font)
-            dc.SetTextForeground(wx.Colour("#455063"))
+            dc.SetTextForeground(wx.Colour(SECONDARY_TEXT))
             dc.DrawText(f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}", x + 8, y + 21)
             del clip
 
