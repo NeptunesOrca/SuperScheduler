@@ -266,7 +266,6 @@ class ScheduleCanvas(wx.ScrolledWindow):
             self.drag_original_start = self.selected_event.start
             self.drag_original_end = self.selected_event.end
             self.drag_anchor_offset_minutes = max(0, self.minutes_from_datetime(self.selected_event.start, y))
-            print(f"Selected event: {self.selected_event.title} (ID: {self.selected_event.event_id})")
             self.Refresh()
         else:
             if self.selected_event is not None:
@@ -529,7 +528,6 @@ class ScheduleCanvas(wx.ScrolledWindow):
                 border = wx.Colour(GOOGLE_LINKED_EVENT_BORDER)
 
             if (self.selected_event is event):
-                swap = fill
                 fill = border
                 border = wx.Colour(STANDARD_BLACK)
 
