@@ -765,6 +765,7 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
         self.draw_overflow_counts(dc, event_counts)
 
+    ''' I think this is leftover from when the AI tried to implement task preview in the monthly calendar view when I told it to do it in the schedule view
     def draw_task_preview(self, dc: wx.DC) -> None:
         if self.preview_task is None:
             return
@@ -784,6 +785,7 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
             dc.SetPen(wx.Pen(wx.Colour(97, 160, 85), 1))
             dc.SetBrush(wx.Brush(wx.Colour(200, 230, 200)))
             dc.DrawRoundedRectangle(x, y, width, height, 6)
+    '''
 
     def count_events_by_day(self) -> dict[date, int]:
         counts: dict[date, int] = {}
