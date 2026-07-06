@@ -522,7 +522,10 @@ class ScheduleCanvas(wx.ScrolledWindow):
                 fill = GOOGLE_LINKED_EVENT_FILL
                 border = GOOGLE_LINKED_EVENT_BORDER
 
-            
+            if (self.selected_event is event):
+                swap = fill
+                fill = border
+                border = swap
 
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
