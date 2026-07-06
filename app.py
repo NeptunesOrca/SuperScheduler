@@ -27,6 +27,12 @@ TASK_PANEL_DEFAULT_WIDTH = 300
 VIEW_WEEK = "week"
 VIEW_MONTH = "month"
 
+MODE_NA = ""
+MODE_RESIZE_EVENT_START = "resize-start"
+MODE_RESIZE_EVENT_END = "resize-end"
+MODE_MOVE_OR_SELECT = "move-select"
+
+
 class EventDialog(wx.Dialog):
     def __init__(
         self,
@@ -159,7 +165,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
         self.Bind(wx.EVT_RIGHT_DOWN, self.on_right_down)
         # Drag State
         self.pending_drag_event: ScheduleEvent | None = None
-        self.pending_drag_mode = ""
+        self.pending_drag_mode = MODE_NA
         self.pending_drag_pos: tuple[int, int] | None = None
         self.drag_started = False
         self.drag_original_start: datetime | None = None
@@ -220,10 +226,10 @@ class ScheduleCanvas(wx.ScrolledWindow):
         for rect, event in reversed(self.get_event_rects()):
             if rect.Contains(x, y):
                 if y <= rect.GetTop() + self.edge_margin:
-                    return event, "resize-start"
+                    return event, MODE_RESIZE_EVENT_START
                 if y >= rect.GetBottom() - self.edge_margin:
-                    return event, "resize-end"
-                return event, "move"
+                    return event, MODE_RESIZE_EVENT_END
+                return event, MODE_MOVE_OR_SELECT
         return None
 
     def on_left_down(self, event: wx.MouseEvent) -> None:
@@ -337,7 +343,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
             return
 
         selected_event = self.pending_drag_event
-        if self.pending_drag_mode == "move":
+        if self.pending_drag_mode == MODE_MOVE_OR_SELECT:
             duration = self.drag_original_end - self.drag_original_start
             day_index = self.day_index_from_x(x)
             start_minutes = self.minutes_from_y(y) - self.drag_anchor_offset_minutes
@@ -346,13 +352,13 @@ class ScheduleCanvas(wx.ScrolledWindow):
             start_minutes = min(max(0, start_minutes), max(0, max_start_minutes))
             selected_event.start = self.datetime_from_grid(day_index, start_minutes)
             selected_event.end = selected_event.start + duration
-        elif self.pending_drag_mode == "resize-start":
+        elif self.pending_drag_mode == MODE_RESIZE_EVENT_START:
             day_index = (self.drag_original_start.date() - self.week_start).days
             start_minutes = self.snap_to_grid(self.minutes_from_y(y))
             new_start = self.datetime_from_grid(day_index, max(0, start_minutes))
             latest_start = selected_event.end - timedelta(minutes=self.min_duration_minutes)
             selected_event.start = min(new_start, latest_start)
-        elif self.pending_drag_mode == "resize-end":
+        elif self.pending_drag_mode == MODE_RESIZE_EVENT_END:
             day_index = (self.drag_original_start.date() - self.week_start).days
             end_minutes = self.snap_to_grid(self.minutes_from_y(y))
             new_end = self.datetime_from_grid(day_index, min(24 * 60, end_minutes))
@@ -374,7 +380,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
 
     def clear_drag_state(self) -> None:
         self.pending_drag_event = None
-        self.pending_drag_mode = ""
+        self.pending_drag_mode = MODE_NA
         self.pending_drag_pos = None
         self.drag_started = False
         self.drag_original_start = None
