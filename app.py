@@ -9,6 +9,7 @@ from typing import Callable
 
 import wx
 import wx.adv
+import copy
 
 from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour, minutes_to_hour
 from schedule_event import ScheduleEvent
@@ -1191,6 +1192,19 @@ class SchedulerFrame(wx.Frame):
         target_day = self.schedule.week_start + timedelta(days=day_index)
         self.create_event_from_task(task, target_day, hour, approximate_minute)
 
+    def add_event(self, event : ScheduleEvent, add_to_google : bool = False) -> None:
+        if add_to_google:
+            try:
+                created = self.google_client.create_event(event)
+                self.google_events.append(created)
+            except Exception as exc:
+                wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
+                return None
+        else:
+            self.local_events.append(event)
+        self.save()
+        self.refresh_schedule()
+
     def new_event_dialog(self, initial_day: date, initial_hour: int, initial_minute: int = 0, eventTitle: str = "New Event") -> None | ScheduleEvent:
         dialog = EventDialog(
             self,
@@ -1210,17 +1224,7 @@ class SchedulerFrame(wx.Frame):
                 wx.MessageBox(str(exc), "Event needs a fix", wx.OK | wx.ICON_WARNING)
                 return None
 
-            if add_to_google:
-                try:
-                    created = self.google_client.create_event(event)
-                    self.google_events.append(created)
-                except Exception as exc:
-                    wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
-                    return None
-            else:
-                self.local_events.append(event)
-            self.save()
-            self.refresh_schedule()
+            self.add_event(event, add_to_google)
             return event
         finally:
             dialog.Destroy()
@@ -1259,6 +1263,51 @@ class SchedulerFrame(wx.Frame):
             self.refresh_schedule()
         finally:
             dialog.Destroy()
+
+    def copy_event(self):
+        print("copying")
+        if self.schedule.selected_event:
+            self._clipboard_event = copy.deepcopy(self.schedule.selected_event)
+            print("copy successful (ID: " + self._clipboard_event.event_id + ")")
+
+    def paste_event(self, start_time: datetime):
+        print("pasting")
+        if self._clipboard_event:
+            src = copy.deepcopy(self._clipboard_event)
+            src.event_id = str(uuid.uuid4())
+            duration = src.end - src.start
+            src.start = start_time
+            src.end = start_time + duration
+            print("pasting event (ID: " + src.event_id + ")")
+            self.add_event(src)
+
+    def on_key_down(self, event: wx.KeyEvent) -> None:
+        keycode = event.GetKeyCode()
+
+        # Delete selected event
+        if keycode == wx.WXK_DELETE:
+            if self.schedule.selected_event:
+                self.delete_event(self.schedule.selected_event)
+                return
+
+        # Copy / Paste
+        if event.ControlDown():
+            # Ctrl+C: copy
+            if keycode in (ord("C"), ord("c")):
+                self.copy_event()
+                return
+            # Ctrl+V: paste (duplicate)
+            if keycode in (ord("V"), ord("v")):
+                (x,y) = wx.GetMousePosition()
+                day = self.schedule.day_index_from_x(x - self.schedule.GetScreenPosition().x)
+                minutes = self.schedule.minutes_from_y(y - self.schedule.GetScreenPosition().y)
+                start_time = self.schedule.datetime_from_grid(day, minutes)
+                self.paste_event(start_time)
+                return
+
+        event.Skip()
+        # Global key handling for shortcuts (Delete, Ctrl+C, Ctrl+V)
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_key_down)
 
     @staticmethod
     def replace_event(events: list[ScheduleEvent], edited_event: ScheduleEvent) -> None:
