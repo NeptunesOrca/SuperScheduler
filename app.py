@@ -11,7 +11,7 @@ import wx
 import wx.adv
 import copy
 
-from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour, minutes_to_hour
+from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour, minutes_to_hour, round_datetime_to_quarter_hour
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
@@ -345,6 +345,8 @@ class ScheduleCanvas(wx.ScrolledWindow):
         minute = self.minutes_from_y(y)
         hour = minutes_to_hour(minute)
         click_day = self.week_start + timedelta(days=day_index)
+        time = self.datetime_from_grid(day_index, minute)
+        rounded_time = round_datetime_to_quarter_hour(time)
 
         rclick_menu = wx.Menu()
         new_id = wx.Window.NewControlId()
@@ -365,7 +367,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_copy_event(selected_event), id=copy_id)
-        rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.paste_event(), id=paste_id)
+        rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_paste_event(rounded_time), id=paste_id)
         self.PopupMenu(rclick_menu)
         rclick_menu.Destroy()
 
