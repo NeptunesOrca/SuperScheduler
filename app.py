@@ -557,9 +557,9 @@ class ScheduleCanvas(wx.ScrolledWindow):
         label_text = self.preview_task.title
         duration_text = f"{self.preview_duration_minutes} min"
 
-        border_colour = wx.Colour(97, 160, 85)
-        fill_colour = wx.Colour(97, 160, 85, 80)
-        text_colour = wx.Colour(255, 255, 255)
+        border_colour = wx.Colour(TASK_EVENT_BORDER)
+        fill_colour = wx.Colour(TASK_EVENT_FILL)
+        text_colour = wx.Colour(DEFAULT_TEXT)
 
         dc.SetPen(wx.Pen(border_colour, 1))
         dc.SetBrush(wx.Brush(fill_colour))
