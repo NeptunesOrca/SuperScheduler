@@ -167,6 +167,8 @@ class ScheduleCanvas(wx.ScrolledWindow):
         on_edit_event: Callable[[ScheduleEvent], None],
         on_event_changed: Callable[[ScheduleEvent, datetime, datetime], bool],
         on_delete_event: Callable[[ScheduleEvent], None],
+        on_copy_event: Callable[[ScheduleEvent], None],
+        on_paste_event: Callable[[datetime], None],
     ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL | wx.HSCROLL)
         # Window Settings
@@ -200,6 +202,8 @@ class ScheduleCanvas(wx.ScrolledWindow):
         # Callables
         self.on_new_event = on_new_event
         self.on_edit_event = on_edit_event
+        self.on_copy_event = on_copy_event
+        self.on_paste_event = on_paste_event
         self.on_event_changed = on_event_changed
         self.on_delete_event = on_delete_event
         # Layout Variables
@@ -342,22 +346,28 @@ class ScheduleCanvas(wx.ScrolledWindow):
         hour = minutes_to_hour(minute)
         click_day = self.week_start + timedelta(days=day_index)
 
-        menu = wx.Menu()
-        edit_id = wx.Window.NewControlId()
+        rclick_menu = wx.Menu()
         new_id = wx.Window.NewControlId()
+        edit_id = wx.Window.NewControlId()
+        paste_id = wx.Window.NewControlId()
         delete_id = wx.Window.NewControlId()
-        menu.Append(new_id, "New event")
-        menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
-
-        if selected_event is not None:
-            menu.AppendSeparator()
-            menu.Append(edit_id, "Edit event")
-            menu.Append(delete_id, "Delete event")        
-            menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
-            menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
-
-        self.PopupMenu(menu)
-        menu.Destroy()
+        copy_id = wx.Window.NewControlId()
+        rclick_menu.Append(new_id, "New event")
+        rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
+        if selected_event is None:
+            rclick_menu.Append(paste_id, "Paste event")
+        else:
+            rclick_menu.AppendSeparator()
+            rclick_menu.Append(edit_id, "Edit event")
+            rclick_menu.Append(copy_id, "Copy event")
+            rclick_menu.Append(paste_id, "Paste event")
+            rclick_menu.Append(delete_id, "Delete event")
+            rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
+            rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
+            rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_copy_event(selected_event), id=copy_id)
+        rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.paste_event(), id=paste_id)
+        self.PopupMenu(rclick_menu)
+        rclick_menu.Destroy()
 
     def maybe_start_drag(self, x: int, y: int) -> None:
         if self.drag_started or not self.pending_drag_pos:
@@ -463,6 +473,13 @@ class ScheduleCanvas(wx.ScrolledWindow):
             event_rects.append((wx.Rect(x, y, width, height), event))
 
         return event_rects
+
+    def paste_event(self):
+        (x,y) = self.ScreenToClient(wx.GetMousePosition())
+        day_index = self.day_index_from_x(x)
+        minute = self.minutes_from_y(y)
+        start_time = self.datetime_from_grid(day_index, minute)
+        self.on_paste_event(start_time)
 
     def on_paint(self, _event: wx.PaintEvent) -> None:
         dc = wx.AutoBufferedPaintDC(self)
@@ -994,6 +1011,8 @@ class SchedulerFrame(wx.Frame):
             self.open_existing_event_dialog,
             self.handle_event_drag_changed,
             self.delete_event,
+            self.copy_event,
+            self.paste_event
         )
         self.month_calendar = MonthCalendarCanvas(
             self.calendar_panel,
@@ -1264,14 +1283,12 @@ class SchedulerFrame(wx.Frame):
         finally:
             dialog.Destroy()
 
-    def copy_event(self):
-        print("copying")
-        if self.schedule.selected_event:
-            self._clipboard_event = copy.deepcopy(self.schedule.selected_event)
-            print("copy successful (ID: " + self._clipboard_event.event_id + ")")
+    def copy_event(self, event: ScheduleEvent):
+        self._clipboard_event = copy.deepcopy(event)
+        print("copy successful (ID: " + self._clipboard_event.event_id + ")")
 
     def paste_event(self, start_time: datetime):
-        print("pasting")
+        print("pasting at time: " + start_time.strftime("%Y-%m-%d %H:%M"))
         if self._clipboard_event:
             src = copy.deepcopy(self._clipboard_event)
             src.event_id = str(uuid.uuid4())
@@ -1294,7 +1311,8 @@ class SchedulerFrame(wx.Frame):
         if event.ControlDown():
             # Ctrl+C: copy
             if keycode in (ord("C"), ord("c")):
-                self.copy_event()
+                if self.schedule.selected_event:
+                    self.copy_event(self.schedule.selected_event)
                 return
             # Ctrl+V: paste (duplicate)
             if keycode in (ord("V"), ord("v")):
