@@ -42,6 +42,10 @@ def parse_time_text(raw_value: str) -> time:
 def rounded_quarter_hour(minute: int) -> int:
     accurate_minute = min(59, max(0, minute % 60)) # ensures minute is between 0 and 59
     return accurate_minute - (accurate_minute % 15)
+def round_datetime_to_quarter_hour(time : datetime) -> datetime:
+    minute = time.minute
+    rounded_minute = rounded_quarter_hour(minute)
+    return time.replace(minute=rounded_minute, second=0, microsecond=0)
 
 def minutes_to_hour(minutes: int) -> int:
     return min(23, max(0, minutes // 60))
