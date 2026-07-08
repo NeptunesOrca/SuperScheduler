@@ -11,7 +11,7 @@ import wx
 import wx.adv
 import copy
 
-from time_management import local_tz, parse_datetime, start_of_week, wxdate_to_date, parse_time_text, rounded_quarter_hour, minutes_to_hour, round_datetime_to_quarter_hour
+from time_management import *
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
@@ -102,7 +102,7 @@ class EventDialog(wx.Dialog):
         if event:
             self.title_input.SetValue(event.title)
             self.description_input.SetValue(event.description)
-            if event.source == "google":
+            if event.isGoogleLinked:
                 self.google_checkbox.SetLabel("Google Calendar event")
                 self.google_checkbox.SetValue(True)
         elif event_title:
@@ -151,7 +151,7 @@ class EventDialog(wx.Dialog):
                 title=event_title,
                 start=start_dt,
                 end=end_dt,
-                source=self.event.source if self.event else "local",
+                isGoogleLinked=self.event.isGoogleLinked if self.event else False,
                 description=self.description_input.GetValue().strip(),
                 linkedTaskID=self.event.linkedTaskID if self.event else None,
             ),
@@ -545,7 +545,7 @@ class ScheduleCanvas(wx.ScrolledWindow):
             if event.linkedTaskID is not None:
                 fill = wx.Colour(TASK_EVENT_FILL)
                 border = wx.Colour(TASK_EVENT_BORDER)
-            elif event.source == "google":
+            elif event.isGoogleLinked:
                 fill = wx.Colour(GOOGLE_LINKED_EVENT_FILL)
                 border = wx.Colour(GOOGLE_LINKED_EVENT_BORDER)
 
@@ -772,13 +772,13 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
         event_counts = self.count_events_by_day()
 
         for rect, event in self.get_event_rects():
-            fill = wx.Colour("#d9ecff") if event.source == "google" else wx.Colour("#e9f6e8")
-            border = wx.Colour("#5797d7") if event.source == "google" else wx.Colour("#61a765")
+            fill = wx.Colour(GOOGLE_LINKED_EVENT_FILL) if event.isGoogleLinked else wx.Colour(STANDARD_EVENT_FILL)
+            border = wx.Colour(GOOGLE_LINKED_EVENT_BORDER) if event.isGoogleLinked else wx.Colour(STANDARD_EVENT_BORDER)
             dc.SetPen(wx.Pen(border, 1))
             dc.SetBrush(wx.Brush(fill))
             dc.DrawRoundedRectangle(rect.GetX(), rect.GetY(), rect.GetWidth(), rect.GetHeight(), 4)
             clip = wx.DCClipper(dc, rect.GetX() + 4, rect.GetY() + 2, rect.GetWidth() - 8, rect.GetHeight() - 4)
-            dc.SetTextForeground(wx.Colour("#20242d"))
+            dc.SetTextForeground(wx.Colour(DEFAULT_TEXT))
             dc.DrawText(f"{event.start.strftime('%H:%M')} {event.title}", rect.GetX() + 5, rect.GetY() + 2)
             del clip
 
@@ -1269,16 +1269,16 @@ class SchedulerFrame(wx.Frame):
                 wx.MessageBox(str(exc), "Event needs a fix", wx.OK | wx.ICON_WARNING)
                 return
 
-            if selected_event.source == "google":
+            if selected_event.isGoogleLinked:
                 try:
-                    edited_event.source = "google"
+                    edited_event.isGoogleLinked = True
                     self.google_client.update_event(edited_event)
                     self.replace_event(self.google_events, edited_event)
                 except Exception as exc:
                     wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
                     return
             else:
-                edited_event.source = "local"
+                edited_event.isGoogleLinked = False
                 self.replace_event(self.local_events, edited_event)
 
             self.save()
@@ -1338,14 +1338,14 @@ class SchedulerFrame(wx.Frame):
         _original_start: datetime,
         _original_end: datetime,
     ) -> bool:
-        if selected_event.source == "google":
+        if selected_event.isGoogleLinked:
             try:
                 self.google_client.update_event(selected_event)
             except Exception as exc:
                 wx.MessageBox(str(exc), "Google Calendar error", wx.OK | wx.ICON_ERROR)
                 return False
         else:
-            selected_event.source = "local"
+            selected_event.isGoogleLinked = False
 
         self.save()
         self.refresh_schedule()
@@ -1361,7 +1361,7 @@ class SchedulerFrame(wx.Frame):
         if response != wx.YES:
             return
 
-        if selected_event.source == "google":
+        if selected_event.isGoogleLinked:
             try:
                 self.google_client.delete_event(selected_event)
             except Exception as exc:

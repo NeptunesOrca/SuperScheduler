@@ -26,7 +26,7 @@ class AppStorage:
 
     def save(self, events: list[ScheduleEvent], tasks: list[TaskItem]) -> None:
         payload = {
-            "events": [event.to_dict() for event in events if event.source == "local"],
+            "events": [event.to_dict() for event in events if not event.isGoogleLinked],
             "tasks": [task.to_dict() for task in tasks],
         }
         with self.path.open("w", encoding="utf-8") as file:

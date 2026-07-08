@@ -14,7 +14,7 @@ class ScheduleEvent:
     title: str
     start: datetime
     end: datetime
-    source: str = "local"
+    isGoogleLinked: bool = False
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     description: str = ""
     linkedTaskID: str | None = None
@@ -27,7 +27,7 @@ class ScheduleEvent:
             title=          payload.get("title",                "Untitled"),
             start=          parse_datetime(payload["start"]),   # N/A (via parse_datetime)
             end=            parse_datetime(payload["end"]),     # N/A (via parse_datetime)
-            source=         payload.get("source",               "local"),
+            isGoogleLinked= payload.get("isGoogleLinked",       False),
             description=    payload.get("description",          ""),
             linkedTaskID=   payload.get("linked_task_id",       None)
         )
@@ -38,7 +38,7 @@ class ScheduleEvent:
             "title": self.title,
             "start": self.start.isoformat(),
             "end": self.end.isoformat(),
-            "source": self.source,
+            "isGoogleLinked": self.isGoogleLinked,
             "description": self.description,
             "linked_task_id": self.linkedTaskID
         }
