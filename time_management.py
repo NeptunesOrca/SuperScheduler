@@ -1,7 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
 import wx
-import wx.adv
 
 def local_tz():
     return datetime.now().astimezone().tzinfo
