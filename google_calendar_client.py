@@ -82,7 +82,7 @@ class GoogleCalendarClient:
                     title=item.get("summary", "Untitled"),
                     start=start_value,
                     end=end_value,
-                    source="google",
+                    isGoogleLinked=True,
                     description=item.get("description", ""),
                 )
             )
@@ -98,7 +98,7 @@ class GoogleCalendarClient:
         }
         created = service.events().insert(calendarId="primary", body=body).execute()
         event.event_id = created.get("id", event.event_id)
-        event.source = "google"
+        event.isGoogleLinked = True
         return event
 
     def update_event(self, event: ScheduleEvent) -> ScheduleEvent:
@@ -115,7 +115,7 @@ class GoogleCalendarClient:
             .execute()
         )
         event.event_id = updated.get("id", event.event_id)
-        event.source = "google"
+        event.isGoogleLinked = True
         return event
 
     def delete_event(self, event: ScheduleEvent) -> None:
