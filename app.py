@@ -646,7 +646,6 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
     def on_left_down(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
         self.selected_event = self.hit_test_event(x, y)
-        print(f"Selected event: {self.selected_event.title if self.selected_event else 'None'}")
 
     def on_double_click(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
@@ -1289,17 +1288,14 @@ class SchedulerFrame(wx.Frame):
 
     def copy_event(self, event: ScheduleEvent):
         self._clipboard_event = copy.deepcopy(event)
-        print("copy successful (ID: " + self._clipboard_event.event_id + ")")
 
     def paste_event(self, start_time: datetime):
-        print("pasting at time: " + start_time.strftime("%Y-%m-%d %H:%M"))
         if self._clipboard_event:
             src = copy.deepcopy(self._clipboard_event)
             src.event_id = str(uuid.uuid4())
             duration = src.end - src.start
             src.start = start_time
             src.end = start_time + duration
-            print("pasting event (ID: " + src.event_id + ")")
             self.add_event(src)
 
     def on_key_down(self, event: wx.KeyEvent) -> None:
