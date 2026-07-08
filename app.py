@@ -1047,6 +1047,8 @@ class SchedulerFrame(wx.Frame):
         new_button.Bind(wx.EVT_BUTTON, lambda _event: self.new_event_dialog(date.today(), 9))
         sync_button.Bind(wx.EVT_BUTTON, lambda _event: self.sync_google())
         connect_button.Bind(wx.EVT_BUTTON, lambda _event: self.connect_google())
+        # Global key handling for shortcuts (Delete, Ctrl+C, Ctrl+V)
+        self.Bind(wx.EVT_CHAR_HOOK, self.on_key_down)
 
         menubar = wx.MenuBar()
         file_menu = wx.Menu()
@@ -1326,8 +1328,6 @@ class SchedulerFrame(wx.Frame):
                 return
 
         event.Skip()
-        # Global key handling for shortcuts (Delete, Ctrl+C, Ctrl+V)
-        self.Bind(wx.EVT_CHAR_HOOK, self.on_key_down)
 
     @staticmethod
     def replace_event(events: list[ScheduleEvent], edited_event: ScheduleEvent) -> None:
