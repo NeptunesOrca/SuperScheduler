@@ -603,8 +603,10 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
         on_new_event: Callable[[date, int], None],
         on_edit_event: Callable[[ScheduleEvent], None],
         on_delete_event: Callable[[ScheduleEvent], None],
+        on_show_week_for_day: Callable[[date], None] | None = None,
     ):
         super().__init__(parent, style=wx.BORDER_NONE | wx.VSCROLL)
+        self.on_show_week_for_day = on_show_week_for_day
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
         self.SetScrollRate(10, 10)
         today = date.today()
@@ -649,14 +651,12 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
     def on_double_click(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
-        selected_event = self.hit_test_event(x, y)
-        if selected_event:
-            self.on_edit_event(selected_event)
-            return
-
         selected_day = self.day_from_position(x, y)
         if selected_day:
-            self.on_new_event(selected_day, 9)
+            if self.on_show_week_for_day is not None:
+                self.on_show_week_for_day(selected_day)
+            else:
+                self.on_new_event(selected_day, 9)
 
     def on_right_down(self, event: wx.MouseEvent) -> None:
         x, y = self.CalcUnscrolledPosition(event.GetPosition())
@@ -1020,6 +1020,7 @@ class SchedulerFrame(wx.Frame):
             self.new_event_dialog,
             self.open_existing_event_dialog,
             self.delete_event,
+            self.show_week_for_day,
         )
         calendar_sizer.Add(self.schedule, 1, wx.EXPAND)
         calendar_sizer.Add(self.month_calendar, 1, wx.EXPAND)
@@ -1180,6 +1181,16 @@ class SchedulerFrame(wx.Frame):
         self.refresh_schedule()
         if self.google_client.is_connected():
             self.sync_google(show_success=False)
+
+    def show_week_for_day(self, target_day: date) -> None:
+        self.current_week = start_of_week(target_day)
+        self.current_view = VIEW_WEEK
+        self.month_calendar.Hide()
+        self.schedule.Show()
+        menubar = self.GetMenuBar()
+        menubar.Check(self.week_view_id, True)
+        menubar.Check(self.month_view_id, False)
+        self.refresh_schedule()
 
     @staticmethod
     def shift_month(month_start_value: date, delta_months: int) -> date:
