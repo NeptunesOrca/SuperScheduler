@@ -1,8 +1,6 @@
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from time_management import parse_datetime
 
-@dataclass
 class Reoccurrance:
     def __init__(self, start : datetime, duration : timedelta):
         self.start = start
@@ -25,3 +23,13 @@ class Reoccurrance:
             "start" : self.start.isoformat(),
             "duration": self.duration
         }
+
+def serialize_reoccruance_or_none(value : Reoccurrance | None):
+    if not value:
+        return None
+    return value.to_dict()
+
+def deserialize_reoccurance_or_none(input: str | dict) -> Reoccurrance | None:
+    if input == "None":
+        return None
+    return Reoccurrance.from_dict(input)

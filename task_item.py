@@ -3,20 +3,22 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from time_management import parse_datetime, serialize_datetime_or_none, parse_datetime_or_none
+from reoccurance import Reoccurrance
 
 @dataclass
 class TaskItem:
+    reoccurance : Reoccurrance | None
     task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     done: bool = False
     due: datetime | None = None
     priority: int = 0
-    
 
     @classmethod
     def from_dict(cls, payload: dict) -> "TaskItem":
         return cls(
             # Field       | Value                                     | Default
+            reoccurance=    payload.get("reoccurance",                  None)
             task_id=        payload.get("task_id",                      str(uuid.uuid4())),
             title=          payload.get("title",                        "Untitled task"),
             done=           payload.get("done",                         False),
@@ -25,7 +27,11 @@ class TaskItem:
         )
 
     def to_dict(self) -> dict:
+        reocurrance = None
+        if self.reoccurance:
+            reoccurance = self.reoccurance
         return {
+            "reoccurance": reoccurance,
             "task_id": self.task_id,
             "title": self.title,
             "done": self.done,
