@@ -24,13 +24,13 @@ class Reccurrance:
             "duration": int(self.duration.total_seconds())
         }
 
-def serialize_reoccurance_or_none(value : Reccurrance | None):
+def serialize_reccurance_or_none(value : Reccurrance | None):
     if not value:
         return None
     return value.to_dict()
 
 
-def deserialize_reoccurance_or_none(input: str | dict) -> Reccurrance | None:
+def deserialize_reccurance_or_none(input: str | dict) -> Reccurrance | None:
     if type(input) is dict:
         return Reccurrance.from_dict(input)
     return None
