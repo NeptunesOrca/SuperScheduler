@@ -15,21 +15,22 @@ class Reoccurrance:
         return cls(
             # Field   | Value                             | Default
             start =     parse_datetime(payload["start"]),
-            duration =  payload.get("duration",             timedelta())
+            duration =  timedelta(seconds=payload.get("duration", 0))
         )
     
     def to_dict(self) -> dict:
         return {
             "start" : self.start.isoformat(),
-            "duration": self.duration
+            "duration": int(self.duration.total_seconds())
         }
 
-def serialize_reoccruance_or_none(value : Reoccurrance | None):
+def serialize_reoccurance_or_none(value : Reoccurrance | None):
     if not value:
         return None
     return value.to_dict()
 
+
 def deserialize_reoccurance_or_none(input: str | dict) -> Reoccurrance | None:
-    if input == "None":
-        return None
-    return Reoccurrance.from_dict(input)
+    if type(input) is dict:
+        return Reoccurrance.from_dict(input)
+    return None
