@@ -824,7 +824,14 @@ class TaskPanel(wx.Panel):
             menu.Append(edit_id, "Edit recurrence")
             task = self.tasks[selection]
             menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task_reccurance(task), id=edit_id)
-        self.task_list.PopupMenu(menu, event.GetPosition())
+
+        click_pos = event.GetPosition()
+        if click_pos == wx.Point(-1, -1):
+            click_pos = self.task_list.ScreenToClient(wx.GetMousePosition())
+        else:
+            click_pos = self.task_list.ScreenToClient(click_pos)
+
+        self.task_list.PopupMenu(menu, click_pos)
 
     def set_tasks(self, tasks: list[TaskItem]) -> None:
         self.tasks = tasks
