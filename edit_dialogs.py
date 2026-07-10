@@ -107,7 +107,7 @@ class EventDialog(wx.Dialog):
 
 
 class ReoccurranceDialog(wx.Dialog):
-    def __init__(self, parent: wx.Window, title: str, reccurance: Reccurrance | None = None):
+    def __init__(self, parent: wx.Window, title: str, reccurance: Reccurrance | None = None, allowStartChange = False):
         super().__init__(parent, title=title, size=(380, 280))
 
         panel = wx.Panel(self)
@@ -122,10 +122,16 @@ class ReoccurranceDialog(wx.Dialog):
         self.enabled_checkbox.SetValue(reccurance is not None)
         self.enabled_checkbox.Bind(wx.EVT_CHECKBOX, self.on_toggle_enabled)
 
-        self.start_date_input = wx.adv.DatePickerCtrl(panel)
-        self.start_date_input.SetValue(wx.DateTime.FromDMY(initial_start.day, initial_start.month - 1, initial_start.year))
-        self.start_time_input = wx.TextCtrl(panel, value=initial_start.strftime("%H:%M"))
-
+        self.start_date_input = None
+        self.start_time_input = None
+        if allowStartChange:
+            self.start_date_input = wx.adv.DatePickerCtrl(panel)
+            self.start_date_input.SetValue(wx.DateTime.FromDMY(initial_start.day, initial_start.month - 1, initial_start.year))
+            self.start_time_input = wx.TextCtrl(panel, value=initial_start.strftime("%H:%M"))
+        else:
+            self.start_date_input = wx.StaticText(panel, label=initial_start.strftime("%A %Y-%M-%d"))
+            self.start_time_input = wx.StaticText(panel, label=initial_start.strftime("%H:%M"))
+        
         self.duration_hours = wx.SpinCtrl(panel, min=0, max=23, initial=initial_duration.seconds // 3600)
         self.duration_minutes = wx.SpinCtrl(panel, min=0, max=59, initial=(initial_duration.seconds % 3600) // 60)
 
