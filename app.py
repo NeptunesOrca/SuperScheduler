@@ -16,6 +16,7 @@ from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
 from google_calendar_client import GoogleCalendarClient
+from edit_dialogs import EventDialog, ReoccurranceDialog
 
 APP_TITLE = "SuperScheduler"
 DATA_FILE = Path(__file__).with_name("superscheduler_data.json")
@@ -57,10 +58,6 @@ GOOGLE_LINKED_EVENT_FILL = STANDARD_YELLOW_LIGHT
 GOOGLE_LINKED_EVENT_BORDER = STANDARD_YELLOW_DARK
 #PRIORITY_EVENT_FILL = STANDARD_EVENT_FILL
 #PRIORITY_EVENT_BORDER = STANDARD_PURPLE_DARK
-
-
-
-
 
 class ScheduleCanvas(wx.ScrolledWindow):
     def __init__(
@@ -743,6 +740,7 @@ class TaskPanel(wx.Panel):
         on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None] | None = None,
         on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None] | None = None,
         on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None] | None = None,
+        on_edit_task_reccurance: Callable[[TaskItem], None] | None = None,
     ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
@@ -750,6 +748,7 @@ class TaskPanel(wx.Panel):
         self.on_create_event_from_task = on_create_event_from_task
         self.on_drop_task_to_schedule = on_drop_task_to_schedule
         self.on_task_preview_move = on_task_preview_move
+        self.on_edit_task_reccurance = on_edit_task_reccurance
         self.dragged_task: TaskItem | None = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -818,7 +817,13 @@ class TaskPanel(wx.Panel):
         event.Skip()
 
     def on_task_right_click(self, event: wx.ContextMenuEvent) -> None:
+        selection = self.task_list.GetSelection()
         menu = wx.Menu()
+        if selection != wx.NOT_FOUND and selection < len(self.tasks) and self.on_edit_task_reccurance is not None:
+            edit_id = wx.Window.NewControlId()
+            menu.Append(edit_id, "Edit recurrence")
+            task = self.tasks[selection]
+            menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task_reccurance(task), id=edit_id)
         self.task_list.PopupMenu(menu, event.GetPosition())
 
     def set_tasks(self, tasks: list[TaskItem]) -> None:
@@ -935,6 +940,7 @@ class SchedulerFrame(wx.Frame):
             self.create_event_from_task,
             self.handle_task_drop_to_schedule,
             self.schedule.set_task_preview,
+            self.edit_task_reccurance,
         )
         self.task_panel.set_tasks(self.tasks)
         self.body.SplitVertically(self.calendar_panel, self.task_panel, sashPosition=880)
@@ -1127,6 +1133,21 @@ class SchedulerFrame(wx.Frame):
         approximate_minute = rounded_quarter_hour(minutes)
         target_day = self.schedule.week_start + timedelta(days=day_index)
         self.create_event_from_task(task, target_day, hour, approximate_minute)
+
+    def edit_task_reccurance(self, task: TaskItem) -> None:
+        dialog = ReoccurranceDialog(self, "Edit task recurrence", task.reccurance)
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            try:
+                task.reccurance = dialog.get_reccurance()
+            except ValueError as exc:
+                wx.MessageBox(str(exc), "Recurrence needs a fix", wx.OK | wx.ICON_WARNING)
+                return
+            self.save()
+            self.task_panel.refresh()
+        finally:
+            dialog.Destroy()
 
     def add_event(self, event : ScheduleEvent, add_to_google : bool = False) -> None:
         if add_to_google:

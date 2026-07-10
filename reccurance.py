@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from time_management import parse_datetime
 
-class Reoccurrance:
+class Reccurrance:
     def __init__(self, start : datetime, duration : timedelta):
         self.start = start
         self.duration = duration
@@ -11,7 +11,7 @@ class Reoccurrance:
         return datetime.now() > self.end
     
     @classmethod
-    def from_dict(cls, payload:dict) -> Reoccurrance:
+    def from_dict(cls, payload:dict) -> Reccurrance:
         return cls(
             # Field   | Value                             | Default
             start =     parse_datetime(payload["start"]),
@@ -24,13 +24,13 @@ class Reoccurrance:
             "duration": int(self.duration.total_seconds())
         }
 
-def serialize_reoccurance_or_none(value : Reoccurrance | None):
+def serialize_reoccurance_or_none(value : Reccurrance | None):
     if not value:
         return None
     return value.to_dict()
 
 
-def deserialize_reoccurance_or_none(input: str | dict) -> Reoccurrance | None:
+def deserialize_reoccurance_or_none(input: str | dict) -> Reccurrance | None:
     if type(input) is dict:
-        return Reoccurrance.from_dict(input)
+        return Reccurrance.from_dict(input)
     return None
