@@ -5,6 +5,7 @@ import wx.adv
 from time_management import *
 from reccurance import Reccurrance
 from schedule_event import ScheduleEvent
+from task_item import TaskItem
 
 class EventDialog(wx.Dialog):
     def __init__(
@@ -181,5 +182,177 @@ class ReoccurranceDialog(wx.Dialog):
             raise ValueError("Duration must be greater than zero.")
 
         return Reccurrance(start_dt, duration)
+
+
+def format_recurrence_summary(reccurance: Reccurrance | None) -> str:
+    """Format a recurrence object as a human-readable summary."""
+    if not reccurance:
+        return "No recurrence"
+    
+    start_str = reccurance.start.strftime("%b %d, %Y at %H:%M")
+    end_str = reccurance.end.strftime("%b %d, %Y at %H:%M")
+    duration_hours = reccurance.duration.total_seconds() / 3600
+    
+    if duration_hours == int(duration_hours):
+        duration_str = f"{int(duration_hours)} hour{'s' if duration_hours != 1 else ''}"
+    else:
+        minutes = int((duration_hours % 1) * 60)
+        hours = int(duration_hours)
+        duration_str = f"{hours}h {minutes}m"
+    
+    return f"{start_str} to {end_str} ({duration_str} duration)"
+
+
+class TaskDialog(wx.Dialog):
+    def __init__(
+        self,
+        parent: wx.Window,
+        title: str,
+        task: TaskItem | None = None,
+    ):
+        super().__init__(parent, title=title, size=(450, 380))
+        self.task = task
+        self.current_recurrence = task.reccurance if task else None
+
+        panel = wx.Panel(self)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        form = wx.FlexGridSizer(rows=0, cols=2, vgap=10, hgap=12)
+        form.AddGrowableCol(1, 1)
+
+        # Title
+        self.title_input = wx.TextCtrl(panel)
+        if task:
+            self.title_input.SetValue(task.title)
+
+        # Priority
+        self.priority_input = wx.SpinCtrl(panel, min=0, max=10, initial=task.priority if task else 0)
+
+        # Due Date
+        self.due_date_input = wx.adv.DatePickerCtrl(panel)
+        if task and task.due:
+            wx_date = wx.DateTime.FromDMY(
+                task.due.day,
+                task.due.month - 1,
+                task.due.year
+            )
+            self.due_date_input.SetValue(wx_date)
+        else:
+            # Default to today
+            today = date.today()
+            wx_date = wx.DateTime.FromDMY(today.day, today.month - 1, today.year)
+            self.due_date_input.SetValue(wx_date)
+
+        # Due Date Checkbox
+        self.has_due_date_checkbox = wx.CheckBox(panel, label="Set due date")
+        self.has_due_date_checkbox.SetValue(task and task.due is not None)
+        self.has_due_date_checkbox.Bind(wx.EVT_CHECKBOX, self.on_toggle_due_date)
+        self.due_date_input.Enable(self.has_due_date_checkbox.IsChecked())
+
+        # Add rows to form
+        rows = [
+            ("Title", self.title_input),
+            ("Priority (0-10)", self.priority_input),
+            ("", self.has_due_date_checkbox),
+            ("Due Date", self.due_date_input),
+        ]
+
+        for label, control in rows:
+            if label:
+                form.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+            else:
+                form.Add(wx.StaticText(panel, label=""), 0)
+            form.Add(control, 1, wx.EXPAND)
+
+        # Recurrence section
+        recurrence_label = wx.StaticText(panel, label="Recurrence")
+        recurrence_label_font = recurrence_label.GetFont()
+        recurrence_label_font.MakeBold()
+        recurrence_label.SetFont(recurrence_label_font)
+
+        # Recurrence summary display
+        self.recurrence_summary = wx.StaticText(
+            panel,
+            label=format_recurrence_summary(self.current_recurrence),
+            style=wx.ALIGN_LEFT
+        )
+        summary_font = self.recurrence_summary.GetFont()
+        summary_font.MakeItalic()
+        self.recurrence_summary.SetFont(summary_font)
+
+        # Recurrence buttons sizer
+        recurrence_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.edit_recurrence_button = wx.Button(panel, label="Edit/Add Recurrence")
+        self.delete_recurrence_button = wx.Button(panel, label="Delete Recurrence")
+        self.delete_recurrence_button.Enable(self.current_recurrence is not None)
+
+        self.edit_recurrence_button.Bind(wx.EVT_BUTTON, self.on_edit_recurrence)
+        self.delete_recurrence_button.Bind(wx.EVT_BUTTON, self.on_delete_recurrence)
+
+        recurrence_buttons_sizer.Add(self.edit_recurrence_button, 1, wx.EXPAND | wx.RIGHT, 8)
+        recurrence_buttons_sizer.Add(self.delete_recurrence_button, 1, wx.EXPAND)
+
+        # OK and Cancel buttons
+        buttons = wx.StdDialogButtonSizer()
+        ok_button = wx.Button(panel, wx.ID_OK)
+        cancel_button = wx.Button(panel, wx.ID_CANCEL)
+        buttons.AddButton(ok_button)
+        buttons.AddButton(cancel_button)
+        buttons.Realize()
+
+        # Assemble main sizer
+        sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
+        sizer.Add(recurrence_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 16)
+        sizer.Add(self.recurrence_summary, 0, wx.LEFT | wx.RIGHT, 16)
+        sizer.Add(recurrence_buttons_sizer, 0, wx.LEFT | wx.RIGHT | wx.TOP, 16)
+        sizer.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
+
+        panel.SetSizer(sizer)
+
+    def on_toggle_due_date(self, event: wx.CommandEvent) -> None:
+        self.due_date_input.Enable(self.has_due_date_checkbox.IsChecked())
+
+    def on_edit_recurrence(self, event: wx.Event) -> None:
+        dialog = ReoccurranceDialog(self, "Edit Task Recurrence", self.current_recurrence, allowStartChange=True)
+        try:
+            if dialog.ShowModal() != wx.ID_OK:
+                return
+            try:
+                self.current_recurrence = dialog.get_reccurance()
+                self.recurrence_summary.SetLabel(format_recurrence_summary(self.current_recurrence))
+                self.delete_recurrence_button.Enable(self.current_recurrence is not None)
+            except ValueError as exc:
+                wx.MessageBox(str(exc), "Recurrence needs a fix", wx.OK | wx.ICON_WARNING)
+        finally:
+            dialog.Destroy()
+
+    def on_delete_recurrence(self, event: wx.Event) -> None:
+        self.current_recurrence = None
+        self.recurrence_summary.SetLabel(format_recurrence_summary(None))
+        self.delete_recurrence_button.Enable(False)
+
+    def get_task(self) -> TaskItem:
+        """Get the edited task."""
+        title = self.title_input.GetValue().strip()
+        if not title:
+            raise ValueError("Title is required.")
+
+        priority = self.priority_input.GetValue()
+
+        due = None
+        if self.has_due_date_checkbox.IsChecked():
+            due_date = wxdate_to_date(self.due_date_input.GetValue())
+            due = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=local_tz())
+
+        task_id = self.task.task_id if self.task else str(uuid.uuid4())
+        done = self.task.done if self.task else False
+
+        return TaskItem(
+            task_id=task_id,
+            title=title,
+            done=done,
+            due=due,
+            priority=priority,
+            reccurance=self.current_recurrence,
+        )
 
 
