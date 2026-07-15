@@ -8,6 +8,7 @@ from reccurance import Reccurrance, serialize_reccurance_or_none, deserialize_re
 @dataclass
 class TaskItem:
     task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    created: datetime = field(default_factory=lambda: datetime.now())
     title: str = ""
     done: bool = False
     due: datetime | None = None
@@ -19,6 +20,7 @@ class TaskItem:
         return cls(
             # Field       | Value                                     | Default
             task_id=        payload.get("task_id",                      str(uuid.uuid4())),
+            created=        payload.get("created",                      datetime.now()),
             title=          payload.get("title",                        "Untitled task"),
             done=           payload.get("done",                         False),
             due=            parse_datetime_or_none(payload.get("due", "None")),
@@ -29,6 +31,7 @@ class TaskItem:
     def to_dict(self) -> dict:
         return {
             "task_id": self.task_id,
+            "created": self.created,
             "title": self.title,
             "done": self.done,
             "due": serialize_datetime_or_none(self.due),
