@@ -304,10 +304,17 @@ class TaskDialog(wx.Dialog):
             self.due_date_input.SetValue(date.today())
 
         # Due Date Checkbox
-        self.has_due_date_checkbox = wx.CheckBox(panel, label="Set due date")
-        self.has_due_date_checkbox.SetValue(task and task.due is not None)
-        self.has_due_date_checkbox.Bind(wx.EVT_CHECKBOX, self.on_toggle_due_date)
-        self.due_date_input.Enable(self.has_due_date_checkbox.IsChecked())
+        due_date_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.delete_due_date_button = wx.Button(panel, label="Remove Due Date")
+        hasDueDate = bool((task) and (task.due is not None))
+        self.delete_due_date_button.Enable(hasDueDate)
+        self.add_due_date_button = wx.Button(panel, label="Add Due Date")
+        add_button_index = due_date_sizer.Add(self.add_due_date_button, 1, wx.EXPAND | wx.RIGHT, 8)
+        if not hasDueDate:
+            due_date_sizer.Hide()
+        else:
+            due_date_sizer.Add(self.due_date_input, 1, wx.EXPAND | wx.RIGHT, 8)
+        due_date_sizer.Add(self.delete_due_date_button, 1, wx.EXPAND)
 
         # Add rows to form
         rows = [
