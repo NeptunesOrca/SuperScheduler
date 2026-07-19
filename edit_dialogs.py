@@ -98,7 +98,7 @@ class EventDialog(wx.Dialog):
         form.AddGrowableCol(1, 1)
 
         self.title_input = wx.TextCtrl(panel)
-        self.date_input = wx.adv.DatePickerCtrl(panel)
+        self.date_input = DateEntryCtrl(panel)
         selected_day = event.start.date() if event else initial_day
         selected_hour = event.start.hour if event else initial_hour
         selected_minute = event.start.minute if event else initial_minute
@@ -107,7 +107,7 @@ class EventDialog(wx.Dialog):
         linked_task_id = str(event.linkedTaskID) if (event and event.linkedTaskID is not None) else "None"
         # display for linked task id (read-only)
         linked_task_label = wx.StaticText(panel, label=linked_task_id)
-        self.date_input.SetValue(wx.DateTime.FromDMY(selected_day.day, selected_day.month - 1, selected_day.year))
+        self.date_input.SetValue(selected_day)
         self.start_input = wx.TextCtrl(panel, value=f"{initial_hour:02d}:{initial_minute:02d}")
         self.start_input.SetValue(event.start.strftime("%H:%M") if event else f"{selected_hour:02d}:{selected_minute:02d}")
         self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:{end_minute:02d}")
@@ -154,7 +154,7 @@ class EventDialog(wx.Dialog):
         if not event_title:
             raise ValueError("Title is required.")
 
-        event_date = wxdate_to_date(self.date_input.GetValue())
+        event_date = self.date_input.GetValue()
         start_value = parse_time_text(self.start_input.GetValue())
         end_value = parse_time_text(self.end_input.GetValue())
         start_dt = datetime.combine(event_date, start_value).replace(tzinfo=local_tz())
@@ -195,8 +195,7 @@ class ReoccurranceDialog(wx.Dialog):
         self.start_date_input = None
         self.start_time_input = None
         if allowStartChange:
-            self.start_date_input = wx.adv.DatePickerCtrl(panel)
-            self.start_date_input.SetValue(wx.DateTime.FromDMY(initial_start.day, initial_start.month - 1, initial_start.year))
+            self.start_date_input = DateEntryCtrl(panel, initial_start.date())
             self.start_time_input = wx.TextCtrl(panel, value=initial_start.strftime("%H:%M"))
         else:
             self.start_date_input = wx.StaticText(panel, label=initial_start.strftime("%A %Y-%M-%d"))
@@ -243,7 +242,7 @@ class ReoccurranceDialog(wx.Dialog):
         if not self.enabled_checkbox.IsChecked():
             return None
 
-        start_date = wxdate_to_date(self.start_date_input.GetValue())
+        start_date = self.start_date_input.GetValue()
         start_time = parse_time_text(self.start_time_input.GetValue())
         start_dt = datetime.combine(start_date, start_time).replace(tzinfo=local_tz())
         duration = timedelta(hours=self.duration_hours.GetValue(), minutes=self.duration_minutes.GetValue())
@@ -297,19 +296,12 @@ class TaskDialog(wx.Dialog):
         self.priority_input = wx.SpinCtrl(panel, min=0, max=10, initial=task.priority if task else 0)
 
         # Due Date
-        self.due_date_input = wx.adv.DatePickerCtrl(panel)
+        self.due_date_input = DateEntryCtrl(panel)
         if task and task.due:
-            wx_date = wx.DateTime.FromDMY(
-                task.due.day,
-                task.due.month - 1,
-                task.due.year
-            )
-            self.due_date_input.SetValue(wx_date)
+            self.due_date_input.SetValue(task.due.date())
         else:
             # Default to today
-            today = date.today()
-            wx_date = wx.DateTime.FromDMY(today.day, today.month - 1, today.year)
-            self.due_date_input.SetValue(wx_date)
+            self.due_date_input.SetValue(date.today())
 
         # Due Date Checkbox
         self.has_due_date_checkbox = wx.CheckBox(panel, label="Set due date")
@@ -321,8 +313,7 @@ class TaskDialog(wx.Dialog):
         rows = [
             ("Title", self.title_input),
             ("Priority (0-10)", self.priority_input),
-            ("", self.has_due_date_checkbox),
-            ("Due Date", self.due_date_input),
+            ("Due Date", due_date_sizer),
         ]
 
         for label, control in rows:
@@ -377,7 +368,8 @@ class TaskDialog(wx.Dialog):
 
         panel.SetSizer(sizer)
 
-    def on_toggle_due_date(self, event: wx.CommandEvent) -> None:
+    def on_remove_due_date(self, event: wx.CommandEvent) -> None:
+        self.due_date_input
         self.due_date_input.Enable(self.has_due_date_checkbox.IsChecked())
 
     def on_edit_recurrence(self, event: wx.Event) -> None:
@@ -409,7 +401,7 @@ class TaskDialog(wx.Dialog):
 
         due = None
         if self.has_due_date_checkbox.IsChecked():
-            due_date = wxdate_to_date(self.due_date_input.GetValue())
+            due_date = self.due_date_input.GetValue()
             due = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=local_tz())
 
         task_id = self.task.task_id if self.task else str(uuid.uuid4())
