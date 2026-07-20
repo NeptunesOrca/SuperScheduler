@@ -50,7 +50,8 @@ class DateEntryCtrl(wx.Panel):
             return parse_date_text(text_value)
         return wxdate_to_date(self.calendar_input.GetValue())
 
-    def Enable(self, enable: bool = True) -> None:
-        super().Enable(enable)
+    def Enable(self, enable: bool = True):
+        res = super().Enable(enable)
         self.text_input.Enable(enable)
         self.calendar_input.Enable(enable)
+        return res
