@@ -21,7 +21,6 @@ class TogglePanel(wx.Panel):
             self.SetPanelB(b_panel)
 
         self.SetSizer(self.sizer)
-
         self._update_visibility()
 
     def SetPanelA(self, new_panel):
@@ -43,9 +42,9 @@ class TogglePanel(wx.Panel):
             self._panel_b = new_panel
             self.sizer.Add(self._panel_b, 1, wx.EXPAND | wx.ALL, 5)
 
-    def _make_panel(self, A:bool):
+    def _make_panel(self, makeA:bool):
         p = wx.Panel(self)
-        self.SetPanel(p, A)
+        self.SetPanel(p, makeA)
 
     def _update_visibility(self):
         self._panel_a.Show(self._show_first)
