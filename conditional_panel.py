@@ -1,6 +1,6 @@
 import wx
 
-class TogglePanel(wx.Panel):
+class ConditionalPanel(wx.Panel):
     def __init__(self, parent, a_panel : wx.Panel | None = None, b_panel : wx.Panel | None = None, orientation : int = wx.HORIZONTAL):
         super().__init__(parent)
 
