@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from edit_dialogs import parse_date_text
+from time_management import parse_date_text
 
 
 def test_parse_date_text_accepts_common_formats():
