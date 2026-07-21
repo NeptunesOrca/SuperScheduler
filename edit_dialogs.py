@@ -1,6 +1,8 @@
 import uuid
 import wx
-import wx.adv
+
+from conditional_panel import ConditionalPanel
+from date_entry_ctrl import DateEntryCtrl
 
 from time_management import *
 from reccurance import Reccurrance
@@ -207,11 +209,11 @@ class TaskDialog(wx.Dialog):
         self,
         parent: wx.Window,
         title: str,
-        task: TaskItem | None = None,
+        task: TaskItem,
     ):
         super().__init__(parent, title=title, size=(450, 380))
         self.task = task
-        self.current_recurrence = task.reccurance if task else None
+        self.current_recurrence = task.reccurance
 
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -234,24 +236,30 @@ class TaskDialog(wx.Dialog):
             # Default to today
             self.due_date_input.SetValue(date.today())
 
-        # Due Date Checkbox
-        due_date_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        # Due Date Panel
+        hasDueDate = bool(task.due is not None)
+        init_due_date = None
+        if hasDueDate:
+            init_due_date = task.due.date()
+        self.due_date_panel = wx.BoxSizer()
+        self.due_date_input = DateEntryCtrl(panel, init_due_date)
+        button_panel = wx.Panel(panel)
+        self.add_due_date_button = wx.Button(button_panel, label="Add Due Date")
+        self.due_date_conditional_panel = ConditionalPanel(panel, button_panel, self.due_date_input)
         self.delete_due_date_button = wx.Button(panel, label="Remove Due Date")
-        hasDueDate = bool((task) and (task.due is not None))
         self.delete_due_date_button.Enable(hasDueDate)
-        self.add_due_date_button = wx.Button(panel, label="Add Due Date")
-        add_button_index = due_date_sizer.Add(self.add_due_date_button, 1, wx.EXPAND | wx.RIGHT, 8)
-        if not hasDueDate:
-            due_date_sizer.Hide()
-        else:
-            due_date_sizer.Add(self.due_date_input, 1, wx.EXPAND | wx.RIGHT, 8)
-        due_date_sizer.Add(self.delete_due_date_button, 1, wx.EXPAND)
+
+        self.due_date_panel.Add(self.due_date_conditional_panel)
+        self.due_date_panel.Add(self.delete_due_date_button)
+
+        self.add_due_date_button.Bind(wx.EVT_BUTTON, self.on_add_due_date)
+        self.delete_due_date_button.Bind(wx.EVT_BUTTON, self.on_remove_due_date)
 
         # Add rows to form
         rows = [
             ("Title", self.title_input),
             ("Priority (0-10)", self.priority_input),
-            ("Due Date", due_date_sizer),
+            ("Due Date", self.due_date_panel),
         ]
 
         for label, control in rows:
@@ -305,6 +313,12 @@ class TaskDialog(wx.Dialog):
         sizer.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
 
         panel.SetSizer(sizer)
+
+    def on_add_due_date(self, event : wx.CommandEvent) -> None:
+        print("Add")
+
+    def on_edit_due_date(self, event : wx.CommandEvent) -> None:
+        print("Edit")
 
     def on_remove_due_date(self, event: wx.CommandEvent) -> None:
         self.due_date_input
