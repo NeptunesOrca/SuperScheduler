@@ -2,7 +2,7 @@ import uuid
 import wx
 
 from conditional_panel import ConditionalPanel
-from date_entry_ctrl import DateEntryCtrl
+from datetime_panels import DateEntryCtrl
 
 from time_management import *
 from reccurance import Reccurrance
@@ -238,7 +238,7 @@ class TaskDialog(wx.Dialog):
 
         # Due Date Panel
         hasDueDate = bool(task.due is not None)
-        
+
         self.due_date_panel = wx.BoxSizer()
         button_panel = wx.Panel(panel)
         self.add_due_date_button = wx.Button(button_panel, label="Add Due Date")
