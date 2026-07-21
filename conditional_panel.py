@@ -5,8 +5,8 @@ class ConditionalPanel(wx.Panel):
         super().__init__(parent)
 
         # Panel internal features
-        self._panel_a : wx.Panel
-        self._panel_b : wx.Panel
+        self._panel_a : wx.Panel = wx.Panel(self)
+        self._panel_b : wx.Panel = wx.Panel(self)
         self._show_A = True  # internal boolean state
         self.sizer = wx.BoxSizer(orientation)
 
@@ -47,16 +47,16 @@ class ConditionalPanel(wx.Panel):
         self.SetPanel(p, makeA)
 
     def _update_visibility(self):
-        self._panel_a.Show(self._show_first)
-        self._panel_b.Show(not self._show_first)
+        self._panel_a.Show(self._show_A)
+        self._panel_b.Show(not self._show_A)
         self.sizer.Layout()   # re-flow the sizer for the newly shown/hidden panel
 
     def toggle(self):
         """Flip the internal boolean and refresh which panel is shown."""
-        self._show_first = not self._show_first
+        self._show_A = not self._show_A
         self._update_visibility()
 
     def set_state(self, show_first: bool):
         """Explicitly set which panel should be visible."""
-        self._show_first = show_first
+        self._show_A = show_first
         self._update_visibility()
