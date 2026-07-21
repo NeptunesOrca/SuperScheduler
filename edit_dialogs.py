@@ -230,7 +230,7 @@ class TaskDialog(wx.Dialog):
 
         # Due Date
         self.due_date_input = DateEntryCtrl(panel)
-        if task and task.due:
+        if task.due:
             self.due_date_input.SetValue(task.due.date())
         else:
             # Default to today
@@ -238,11 +238,8 @@ class TaskDialog(wx.Dialog):
 
         # Due Date Panel
         hasDueDate = bool(task.due is not None)
-        init_due_date = None
-        if hasDueDate:
-            init_due_date = task.due.date()
+        
         self.due_date_panel = wx.BoxSizer()
-        self.due_date_input = DateEntryCtrl(panel, init_due_date)
         button_panel = wx.Panel(panel)
         self.add_due_date_button = wx.Button(button_panel, label="Add Due Date")
         self.due_date_conditional_panel = ConditionalPanel(panel, button_panel, self.due_date_input)
@@ -251,6 +248,7 @@ class TaskDialog(wx.Dialog):
 
         self.due_date_panel.Add(self.due_date_conditional_panel)
         self.due_date_panel.Add(self.delete_due_date_button)
+        self.due_date_conditional_panel.set(not hasDueDate)
 
         self.add_due_date_button.Bind(wx.EVT_BUTTON, self.on_add_due_date)
         self.delete_due_date_button.Bind(wx.EVT_BUTTON, self.on_remove_due_date)
@@ -349,23 +347,14 @@ class TaskDialog(wx.Dialog):
         if not title:
             raise ValueError("Title is required.")
 
-        priority = self.priority_input.GetValue()
+        self.task.priority = self.priority_input.GetValue()
 
         due = None
-        if self.has_due_date_checkbox.IsChecked():
+        if self.task.due:
             due_date = self.due_date_input.GetValue()
             due = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=local_tz())
+            self.task.due = due
 
-        task_id = self.task.task_id if self.task else str(uuid.uuid4())
-        done = self.task.done if self.task else False
-
-        return TaskItem(
-            task_id=task_id,
-            title=title,
-            done=done,
-            due=due,
-            priority=priority,
-            reccurance=self.current_recurrence,
-        )
+        return self.task
 
 
