@@ -315,14 +315,14 @@ class TaskDialog(wx.Dialog):
         panel.SetSizer(sizer)
 
     def on_add_due_date(self, event : wx.CommandEvent) -> None:
-        print("Add")
-
-    def on_edit_due_date(self, event : wx.CommandEvent) -> None:
-        print("Edit")
+        self.task.due = datetime.today()
+        self.due_date_conditional_panel.set(False)
+        self.delete_due_date_button.Enable()
 
     def on_remove_due_date(self, event: wx.CommandEvent) -> None:
-        self.due_date_input
-        self.due_date_input.Enable(self.has_due_date_checkbox.IsChecked())
+        self.task.due = None
+        self.delete_due_date_button.Disable()
+        self.due_date_conditional_panel.set(True)
 
     def on_edit_recurrence(self, event: wx.Event) -> None:
         dialog = ReoccurranceDialog(self, "Edit Task Recurrence", self.current_recurrence, allowStartChange=True)
