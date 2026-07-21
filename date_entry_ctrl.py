@@ -55,3 +55,47 @@ class DateEntryCtrl(wx.Panel):
         self.text_input.Enable(enable)
         self.calendar_input.Enable(enable)
         return res
+    
+
+import wx
+
+class DurationSelector(wx.Panel):
+    UNITS = ["minutes", "hours", "days", "weeks", "months"]
+
+    def __init__(self, parent, default_value=1, default_unit="days"):
+        super().__init__(parent)
+
+        self.spin = wx.SpinCtrl(self, min=1, max=999999, initial=default_value)
+        self.unit_choice = wx.Choice(self, choices=self.UNITS)
+
+        unit_index = self.UNITS.index(default_unit) if default_unit in self.UNITS else 0
+        self.unit_choice.SetSelection(unit_index)
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(self.spin, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        sizer.Add(self.unit_choice, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.SetSizer(sizer)
+
+    def GetValue(self):
+        """Returns (amount, unit_string)."""
+        return self.spin.GetValue(), self.UNITS[self.unit_choice.GetSelection()]
+
+    def SetValue(self, amount, unit):
+        self.spin.SetValue(amount)
+        if unit in self.UNITS:
+            self.unit_choice.SetSelection(self.UNITS.index(unit))
+
+    def GetTimedelta(self):
+        """Returns a datetime.timedelta approximation (months treated as 30 days)."""
+        import datetime
+        amount, unit = self.GetValue()
+        if unit == "minutes":
+            return datetime.timedelta(minutes=amount)
+        elif unit == "hours":
+            return datetime.timedelta(hours=amount)
+        elif unit == "days":
+            return datetime.timedelta(days=amount)
+        elif unit == "weeks":
+            return datetime.timedelta(weeks=amount)
+        elif unit == "months":
+            return datetime.timedelta(days=amount * 30)
