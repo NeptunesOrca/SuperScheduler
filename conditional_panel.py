@@ -51,6 +51,11 @@ class ConditionalPanel(wx.Panel):
         self._panel_b.Show(not self._show_A)
         self.sizer.Layout()   # re-flow the sizer for the newly shown/hidden panel
 
+    def set(self, showA_val : bool):
+        """Set the internal boolean and refresh which panel is shown."""
+        self._show_A = showA_val
+        self._update_visibility()
+
     def toggle(self):
         """Flip the internal boolean and refresh which panel is shown."""
         self._show_A = not self._show_A
