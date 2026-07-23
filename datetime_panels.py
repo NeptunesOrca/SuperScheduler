@@ -60,16 +60,18 @@ class DateEntryCtrl(wx.Panel):
 class DurationSelector(wx.Panel):
     UNITS = ["minutes", "hours", "days", "weeks", "months"] # At some point I should probably make this more generalizable or something
 
-    def __init__(self, parent, default_value=1, default_unit="days"):
+    def __init__(self, parent, default_value=1, default_unit="days", prefix_text: str = ""):
         super().__init__(parent)
 
         self.spin = wx.SpinCtrl(self, min=1, max=999999, initial=default_value)
         self.unit_choice = wx.Choice(self, choices=self.UNITS)
+        self.prefix = wx.StaticText(self, label= prefix_text)
 
         unit_index = self.UNITS.index(default_unit) if default_unit in self.UNITS else 0
         self.unit_choice.SetSelection(unit_index)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
+        sizer.Add(self.prefix)
         sizer.Add(self.spin, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(self.unit_choice, 0, wx.ALIGN_CENTER_VERTICAL)
         self.SetSizer(sizer)
