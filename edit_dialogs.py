@@ -328,6 +328,7 @@ class TaskDialog(wx.Dialog):
         buttons.AddButton(cancel_button)
         buttons.Realize()
 
+        # Assemble main sizer
         sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
         '''
         # Assemble main sizer
