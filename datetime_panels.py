@@ -1,5 +1,6 @@
 import wx
 import wx.adv
+import datetime
 from time_management import *
 
 class DateEntryCtrl(wx.Panel):
@@ -55,12 +56,9 @@ class DateEntryCtrl(wx.Panel):
         self.text_input.Enable(enable)
         self.calendar_input.Enable(enable)
         return res
-    
-
-import wx
 
 class DurationSelector(wx.Panel):
-    UNITS = ["minutes", "hours", "days", "weeks", "months"]
+    UNITS = ["minutes", "hours", "days", "weeks", "months"] # At some point I should probably make this more generalizable or something
 
     def __init__(self, parent, default_value=1, default_unit="days"):
         super().__init__(parent)
@@ -85,17 +83,18 @@ class DurationSelector(wx.Panel):
         if unit in self.UNITS:
             self.unit_choice.SetSelection(self.UNITS.index(unit))
 
-    def GetTimedelta(self):
+    def GetTimedelta(self) -> timedelta:
         """Returns a datetime.timedelta approximation (months treated as 30 days)."""
-        import datetime
         amount, unit = self.GetValue()
         if unit == "minutes":
-            return datetime.timedelta(minutes=amount)
+            return timedelta(minutes=amount)
         elif unit == "hours":
-            return datetime.timedelta(hours=amount)
+            return timedelta(hours=amount)
         elif unit == "days":
-            return datetime.timedelta(days=amount)
+            return timedelta(days=amount)
         elif unit == "weeks":
-            return datetime.timedelta(weeks=amount)
+            return timedelta(weeks=amount)
         elif unit == "months":
-            return datetime.timedelta(days=amount * 30)
+            return timedelta(days=amount * 30)
+        else:
+            return timedelta()
