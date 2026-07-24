@@ -330,6 +330,7 @@ class TaskDialog(wx.Dialog):
 
         # Assemble main sizer
         sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
+        sizer.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
         '''
         # Assemble main sizer
         sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
