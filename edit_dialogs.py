@@ -378,9 +378,9 @@ class TaskDialog(wx.Dialog):
     '''
 
     def on_delete_recurrence(self, event: wx.Event) -> None:
-        self.current_recurrence = None
-        self.recurrence_summary.SetLabel(format_recurrence_summary(None))
-        self.delete_recurrence_button.Enable(False)
+        self.task.reccurance = None
+        self.recurrence_conditional_panel.set(True)
+        self.delete_recurrence_button.Disable()
 
     def get_task(self) -> TaskItem:
         """Get the edited task."""
