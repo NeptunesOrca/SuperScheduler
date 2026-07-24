@@ -71,7 +71,7 @@ class DurationSelector(wx.Panel):
         self.unit_choice.SetSelection(unit_index)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(self.prefix)
+        sizer.Add(self.prefix, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(self.spin, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(self.unit_choice, 0, wx.ALIGN_CENTER_VERTICAL)
         self.SetSizer(sizer)
