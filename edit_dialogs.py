@@ -360,7 +360,7 @@ class TaskDialog(wx.Dialog):
             recurrdate = self.task.created
         self.recurrence_conditional_panel.set(False)
         self.delete_recurrence_button.Enable()
-        self.task.reccurance = Reccurrance(recurrdate, self.recurrence_duration.GetTimedelta())
+        self.task.reccurance = Reccurrance(recurrdate, self.recurrence_duration.GetTimedelta(), useDateAsStart=not recurrAtEnd)
     '''
     def on_edit_recurrence(self, event: wx.Event) -> None:
         dialog = ReoccurranceDialog(self, "Edit Task Recurrence", self.current_recurrence, allowStartChange=True)
@@ -375,6 +375,7 @@ class TaskDialog(wx.Dialog):
                 wx.MessageBox(str(exc), "Recurrence needs a fix", wx.OK | wx.ICON_WARNING)
         finally:
             dialog.Destroy()
+    '''
 
     def on_delete_recurrence(self, event: wx.Event) -> None:
         self.current_recurrence = None
