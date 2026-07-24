@@ -259,20 +259,25 @@ class TaskDialog(wx.Dialog):
         recur_button_panel = wx.Panel(recurrence_panel)
         self.add_recurrence_button = wx.Button(recur_button_panel)
         recurrence_duration_panel = wx.Panel(recurrence_panel)
-        recurrence_text = wx.StaticText(recurrence_duration_panel, label="Every")
-        self.recurrence_duration = DurationSelector(recurrence_duration_panel)
-        self.recurrence_conditional_panel = ConditionalPanel(panel, recur_button_panel, recurrence_duration_panel)
+        #recurrence_duration_sizer = wx.BoxSizer()
+        #recurrence_text = wx.StaticText(recurrence_duration_panel, label="Every")
+        self.recurrence_duration = DurationSelector(recurrence_duration_panel, prefix_text="Every")
+        self.recurrence_conditional_panel = ConditionalPanel(panel, recur_button_panel, recurrence_duration_panel, )
         self.delete_recurrence_button = wx.Button(panel, label="Remove Recurrence")
 
         hasRecurrence = bool(self.task.reccurance is not None)
         self.delete_due_date_button.Enable(hasRecurrence)
         self.recurrence_conditional_panel.set(not hasRecurrence)
 
-        self.recurrence_panel.Add(self.recurrence_conditional_panel)
-        self.recurrence_panel.Add(self.delete_recurrence_button)
+        #recurrence_duration_sizer.Add(recurrence_text)
+        #recurrence_duration_sizer.Add(self.recurrence_duration)
+        self.recurrence_panel.Add(self.recurrence_conditional_panel, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.recurrence_panel.Add(self.delete_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL)
         
         self.add_recurrence_button.Bind(wx.EVT_BUTTON, self.on_add_reccurrence)
         self.delete_recurrence_button.Bind(wx.EVT_BUTTON, self.on_delete_recurrence)
+
+        duration_test = DurationSelector(panel, prefix_text="testa")
 
 
         # Add rows to form
@@ -280,15 +285,16 @@ class TaskDialog(wx.Dialog):
             ("Title", self.title_input),
             ("Priority (0-10)", self.priority_input),
             ("Due Date", self.due_date_panel),
-            ("Reccurence", self.recurrence_panel)
+            ("Reccurence", self.recurrence_panel),
+            ("Test", duration_test)
         ]
 
         for label, control in rows:
             if label:
                 form.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
             else:
-                form.Add(wx.StaticText(panel, label=""), 0)
-            form.Add(control, 1, wx.EXPAND)
+                form.Add(wx.StaticText(panel, label=""), 0, wx.ALIGN_CENTER_VERTICAL)
+            form.Add(control, 1, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
 
         '''
         # Recurrence section

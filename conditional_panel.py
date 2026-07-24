@@ -49,6 +49,10 @@ class ConditionalPanel(wx.Panel):
     def _update_visibility(self):
         self._panel_a.Show(self._show_A)
         self._panel_b.Show(not self._show_A)
+        if self._show_A and self._panel_a.Sizer:
+            self._panel_a.Sizer.Layout()
+        elif self._panel_b.Sizer:
+            self._panel_b.Sizer.Layout()
         self.sizer.Layout()   # re-flow the sizer for the newly shown/hidden panel
 
     def set(self, showA_val : bool):
