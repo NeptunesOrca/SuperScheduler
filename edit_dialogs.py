@@ -246,8 +246,8 @@ class TaskDialog(wx.Dialog):
         self.delete_due_date_button = wx.Button(panel, label="Remove Due Date")
         self.delete_due_date_button.Enable(hasDueDate)
 
-        self.due_date_panel.Add(self.due_date_conditional_panel)
-        self.due_date_panel.Add(self.delete_due_date_button)
+        self.due_date_panel.Add(self.due_date_conditional_panel, 0, wx.ALIGN_CENTER_VERTICAL)
+        self.due_date_panel.Add(self.delete_due_date_button, 0, wx.ALIGN_CENTER_VERTICAL)
         self.due_date_conditional_panel.set(not hasDueDate)
 
         self.add_due_date_button.Bind(wx.EVT_BUTTON, self.on_add_due_date)
