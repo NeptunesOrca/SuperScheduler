@@ -57,6 +57,10 @@ class DateEntryCtrl(wx.Panel):
         self.calendar_input.Enable(enable)
         return res
 
+    def Disable(self):
+        return self.Enable(False)
+
+
 class DurationSelector(wx.Panel):
     UNITS = ["minutes", "hours", "days", "weeks", "months"] # At some point I should probably make this more generalizable or something
 
