@@ -254,40 +254,30 @@ class TaskDialog(wx.Dialog):
         self.delete_due_date_button.Bind(wx.EVT_BUTTON, self.on_remove_due_date)
 
         # Recurrence Panels
-        self.recurrence_panel = wx.BoxSizer()
-        recurrence_panel = wx.Panel(panel)
-        recur_button_panel = wx.Panel(recurrence_panel)
+        recur_button_panel = wx.Panel(panel)
         recur_button_panel_sizer = wx.BoxSizer()
         self.add_recurrence_button = wx.Button(recur_button_panel, label="Add Recurrence")
-        recurrence_duration_panel = wx.Panel(recurrence_panel)
-        #recurrence_duration_sizer = wx.BoxSizer()
-        #recurrence_text = wx.StaticText(recurrence_duration_panel, label="Every")
-        self.recurrence_duration = DurationSelector(recurrence_duration_panel, prefix_text="Every")
-        self.recurrence_conditional_panel = ConditionalPanel(panel, recur_button_panel, recurrence_duration_panel, )
-        self.delete_recurrence_button = wx.Button(panel, label="Remove Recurrence")
+        self.delete_recurrence_button = wx.Button(recur_button_panel, label="Remove Recurrence")
+        self.recurrence_duration = DurationSelector(panel, prefix_text="Every")
 
         hasRecurrence = bool(self.task.reccurance is not None)
+        self.add_recurrence_button.Enable(not hasRecurrence)
         self.delete_due_date_button.Enable(hasRecurrence)
-        self.recurrence_conditional_panel.set(not hasRecurrence)
+        self.recurrence_duration.Enable(hasRecurrence)
 
-        #recurrence_duration_sizer.Add(recurrence_text)
-        #recurrence_duration_sizer.Add(self.recurrence_duration)
-        self.recurrence_panel.Add(self.recurrence_conditional_panel, 0, wx.ALIGN_CENTER_VERTICAL)
-        self.recurrence_panel.Add(self.delete_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL)
+        recur_button_panel_sizer.Add(self.delete_recurrence_button, 1, wx.ALIGN_CENTER_VERTICAL)
+        recur_button_panel_sizer.Add(self.add_recurrence_button, 1, wx.ALIGN_CENTER_VERTICAL)
         
         self.add_recurrence_button.Bind(wx.EVT_BUTTON, self.on_add_reccurrence)
         self.delete_recurrence_button.Bind(wx.EVT_BUTTON, self.on_delete_recurrence)
-
-        duration_test = DurationSelector(panel, prefix_text="testa")
-
 
         # Add rows to form
         rows = [
             ("Title", self.title_input),
             ("Priority (0-10)", self.priority_input),
             ("Due Date", self.due_date_panel),
-            ("Reccurence", self.recurrence_panel),
-            ("Test", duration_test)
+            ("Reccurence", recur_button_panel),
+            ("", self.recurrence_duration)
         ]
 
         for label, control in rows:
@@ -360,14 +350,18 @@ class TaskDialog(wx.Dialog):
         self.due_date_conditional_panel.set(True)
 
     def on_add_reccurrence(self, event : wx.CommandEvent) -> None:
+        # Create recurrence, using due date if it exists and creation date if not
         recurrdate = self.task.due
         recurrAtEnd = True
         if not recurrdate:
             recurrAtEnd = False
             recurrdate = self.task.created
-        self.recurrence_conditional_panel.set(False)
-        self.delete_recurrence_button.Enable()
         self.task.reccurance = Reccurrance(recurrdate, self.recurrence_duration.GetTimedelta(), useDateAsStart=not recurrAtEnd)
+
+        # Disable add, enable edit and delete UI
+        self.add_recurrence_button.Disable()
+        self.recurrence_duration.Enable()
+        self.delete_recurrence_button.Enable()
     '''
     def on_edit_recurrence(self, event: wx.Event) -> None:
         dialog = ReoccurranceDialog(self, "Edit Task Recurrence", self.current_recurrence, allowStartChange=True)
@@ -385,9 +379,13 @@ class TaskDialog(wx.Dialog):
     '''
 
     def on_delete_recurrence(self, event: wx.Event) -> None:
+        # Remove recurrence
         self.task.reccurance = None
-        self.recurrence_conditional_panel.set(True)
+        
+        # Enable add, disable delete and duration UI
+        self.add_recurrence_button.Enable()
         self.delete_recurrence_button.Disable()
+        self.recurrence_duration.Disable()
 
     def get_task(self) -> TaskItem:
         """Get the edited task."""
