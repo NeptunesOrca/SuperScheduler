@@ -816,7 +816,8 @@ class TaskPanel(wx.Panel):
                 self.on_edit_task(self.tasks[selection])
             #self.on_create_event_from_task(self.tasks[selection], None, None) # used to automatically create event on double click
         else: 
-            self.add_task(event)
+            self.add_task(event) # create new task
+            self.on_edit_task(self.tasks[-1]) #edit the last task, since we just created it
         event.Skip()
 
     def on_task_left_click(self, event: wx.MouseEvent) -> None:
