@@ -255,18 +255,19 @@ class TaskDialog(wx.Dialog):
 
         # Recurrence Panels
         recur_button_panel = wx.Panel(panel)
-        recur_button_panel_sizer = wx.BoxSizer()
+        recur_button_panel_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.add_recurrence_button = wx.Button(recur_button_panel, label="Add Recurrence")
         self.delete_recurrence_button = wx.Button(recur_button_panel, label="Remove Recurrence")
         self.recurrence_duration = DurationSelector(panel, prefix_text="Every")
 
         hasRecurrence = bool(self.task.reccurance is not None)
         self.add_recurrence_button.Enable(not hasRecurrence)
-        self.delete_due_date_button.Enable(hasRecurrence)
+        self.delete_recurrence_button.Enable(hasRecurrence)
         self.recurrence_duration.Enable(hasRecurrence)
 
-        recur_button_panel_sizer.Add(self.delete_recurrence_button, 1, wx.ALIGN_CENTER_VERTICAL)
-        recur_button_panel_sizer.Add(self.add_recurrence_button, 1, wx.ALIGN_CENTER_VERTICAL)
+        recur_button_panel_sizer.Add(self.delete_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        recur_button_panel_sizer.Add(self.add_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL)
+        recur_button_panel.SetSizer(recur_button_panel_sizer)
         
         self.add_recurrence_button.Bind(wx.EVT_BUTTON, self.on_add_reccurrence)
         self.delete_recurrence_button.Bind(wx.EVT_BUTTON, self.on_delete_recurrence)
@@ -287,36 +288,6 @@ class TaskDialog(wx.Dialog):
                 form.Add(wx.StaticText(panel, label=""), 0, wx.ALIGN_CENTER_VERTICAL)
             form.Add(control, 1, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
 
-        '''
-        # Recurrence section
-        recurrence_label = wx.StaticText(panel, label="Recurrence")
-        recurrence_label_font = recurrence_label.GetFont()
-        recurrence_label_font.MakeBold()
-        recurrence_label.SetFont(recurrence_label_font)
-
-        # Recurrence summary display
-        self.recurrence_summary = wx.StaticText(
-            panel,
-            label=format_recurrence_summary(self.current_recurrence),
-            style=wx.ALIGN_LEFT
-        )
-        summary_font = self.recurrence_summary.GetFont()
-        summary_font.MakeItalic()
-        self.recurrence_summary.SetFont(summary_font)
-
-        # Recurrence buttons sizer
-        recurrence_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.edit_recurrence_button = wx.Button(panel, label="Edit/Add Recurrence")
-        self.delete_recurrence_button = wx.Button(panel, label="Delete Recurrence")
-        self.delete_recurrence_button.Enable(self.current_recurrence is not None)
-
-        self.edit_recurrence_button.Bind(wx.EVT_BUTTON, self.on_edit_recurrence)
-        self.delete_recurrence_button.Bind(wx.EVT_BUTTON, self.on_delete_recurrence)
-
-        recurrence_buttons_sizer.Add(self.edit_recurrence_button, 1, wx.EXPAND | wx.RIGHT, 8)
-        recurrence_buttons_sizer.Add(self.delete_recurrence_button, 1, wx.EXPAND)
-        '''
-
         # OK and Cancel buttons
         buttons = wx.StdDialogButtonSizer()
         ok_button = wx.Button(panel, wx.ID_OK)
@@ -328,15 +299,6 @@ class TaskDialog(wx.Dialog):
         # Assemble main sizer
         sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
         sizer.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
-        '''
-        # Assemble main sizer
-        sizer.Add(form, 0, wx.ALL | wx.EXPAND, 16)
-        sizer.Add(recurrence_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 16)
-        sizer.Add(self.recurrence_summary, 0, wx.LEFT | wx.RIGHT, 16)
-        sizer.Add(recurrence_buttons_sizer, 0, wx.LEFT | wx.RIGHT | wx.TOP, 16)
-        sizer.Add(buttons, 0, wx.ALL | wx.EXPAND, 12)
-        '''
-
         panel.SetSizer(sizer)
 
     def on_add_due_date(self, event : wx.CommandEvent) -> None:
