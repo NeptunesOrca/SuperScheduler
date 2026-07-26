@@ -307,13 +307,15 @@ class TaskDialog(wx.Dialog):
 
     def on_add_due_date(self, event : wx.CommandEvent) -> None:
         self.task.due = datetime.today()
-        self.due_date_conditional_panel.set(False)
+        self.add_due_date_button.Disable()
+        self.due_date_input.Enable()
         self.delete_due_date_button.Enable()
 
     def on_remove_due_date(self, event: wx.CommandEvent) -> None:
         self.task.due = None
+        self.add_due_date_button.Enable()
+        self.due_date_input.Disable()
         self.delete_due_date_button.Disable()
-        self.due_date_conditional_panel.set(True)
 
     def on_add_reccurrence(self, event : wx.CommandEvent) -> None:
         # Create recurrence, using due date if it exists and creation date if not
