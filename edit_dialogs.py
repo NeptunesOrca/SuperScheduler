@@ -268,8 +268,8 @@ class TaskDialog(wx.Dialog):
         self.delete_recurrence_button.Enable(hasRecurrence)
         self.recurrence_duration.Enable(hasRecurrence)
 
-        recur_button_panel_sizer.Add(self.delete_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-        recur_button_panel_sizer.Add(self.add_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL)
+        recur_button_panel_sizer.Add(self.add_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL,5)
+        recur_button_panel_sizer.Add(self.delete_recurrence_button, 0, wx.ALIGN_CENTER_VERTICAL,5)
         recur_button_panel.SetSizer(recur_button_panel_sizer)
         
         self.add_recurrence_button.Bind(wx.EVT_BUTTON, self.on_add_reccurrence)
