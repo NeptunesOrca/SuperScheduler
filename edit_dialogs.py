@@ -237,18 +237,21 @@ class TaskDialog(wx.Dialog):
             self.due_date_input.SetValue(date.today())
 
         # Due Date Panel
+        due_date_buttons = wx.Panel(panel)
+        due_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.add_due_date_button = wx.Button(due_date_buttons, label="Add Due Date")
+        #self.due_date_conditional_panel = ConditionalPanel(panel, due_date_buttons, self.due_date_input)
+        self.delete_due_date_button = wx.Button(due_date_buttons, label="Remove Due Date")
+
+        due_buttons_sizer.Add(self.add_due_date_button, 0, wx.ALIGN_CENTER_VERTICAL, 5)
+        due_buttons_sizer.Add(self.delete_due_date_button, 0, wx.ALIGN_CENTER_VERTICAL, 5)
+        due_date_buttons.SetSizer(due_buttons_sizer)
+
+        #self.due_date_conditional_panel.set(not hasDueDate)
         hasDueDate = bool(task.due is not None)
-
-        self.due_date_panel = wx.BoxSizer()
-        due_button_panel = wx.Panel(panel)
-        self.add_due_date_button = wx.Button(due_button_panel, label="Add Due Date")
-        self.due_date_conditional_panel = ConditionalPanel(panel, due_button_panel, self.due_date_input)
-        self.delete_due_date_button = wx.Button(panel, label="Remove Due Date")
+        self.add_due_date_button.Enable(not hasDueDate)
         self.delete_due_date_button.Enable(hasDueDate)
-
-        self.due_date_panel.Add(self.due_date_conditional_panel, 0, wx.ALIGN_CENTER_VERTICAL)
-        self.due_date_panel.Add(self.delete_due_date_button, 0, wx.ALIGN_CENTER_VERTICAL)
-        self.due_date_conditional_panel.set(not hasDueDate)
+        self.due_date_input.Enable(hasDueDate)
 
         self.add_due_date_button.Bind(wx.EVT_BUTTON, self.on_add_due_date)
         self.delete_due_date_button.Bind(wx.EVT_BUTTON, self.on_remove_due_date)
@@ -276,7 +279,8 @@ class TaskDialog(wx.Dialog):
         rows = [
             ("Title", self.title_input),
             ("Priority (0-10)", self.priority_input),
-            ("Due Date", self.due_date_panel),
+            ("Due Date", due_date_buttons),
+            ("", self.due_date_input),
             ("Reccurence", recur_button_panel),
             ("", self.recurrence_duration)
         ]
