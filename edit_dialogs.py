@@ -288,6 +288,7 @@ class TaskDialog(wx.Dialog):
         for label, control in rows:
             if label:
                 form.Add(wx.StaticText(panel, label=label), 0, wx.ALIGN_CENTER_VERTICAL)
+                #print(label) # can uncomment for testing
             else:
                 form.Add(wx.StaticText(panel, label=""), 0, wx.ALIGN_CENTER_VERTICAL)
             form.Add(control, 1, wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)

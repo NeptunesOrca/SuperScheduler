@@ -812,7 +812,10 @@ class TaskPanel(wx.Panel):
     def on_task_double_click(self, event: wx.MouseEvent) -> None:
         selection = self.task_list.GetSelection()
         if selection != wx.NOT_FOUND and self.on_create_event_from_task is not None:
-            self.on_create_event_from_task(self.tasks[selection], None, None)
+            selectedTask = self.tasks[selection]
+            if selectedTask is not None:
+                self.on_edit_task(selectedTask)
+            #self.on_create_event_from_task(self.tasks[selection], None, None)
         event.Skip()
 
     def on_task_left_click(self, event: wx.MouseEvent) -> None:
