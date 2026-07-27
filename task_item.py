@@ -18,7 +18,9 @@ class TaskItem:
 
     def copy(self, handleReccurance : bool = True) -> "TaskItem":
         copied = copy.deepcopy(self)
-        if handleReccurance and self.done and (self.reccurance is not None):
+        copied.task_id = str(uuid.uuid4())
+        if handleReccurance and (self.reccurance is not None):
+            print("Copy!")
             copied = copy.deepcopy(self)
             oldRecurrance = self.reccurance
             copied.reccurance = Reccurrance(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
