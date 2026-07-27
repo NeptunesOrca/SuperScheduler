@@ -15,9 +15,9 @@ from time_management import *
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
-from reccurance import Reccurrance
+from recurrence import Recurrence
 from google_calendar_client import GoogleCalendarClient
-from edit_dialogs import EventDialog, ReoccurranceDialog, TaskDialog
+from edit_dialogs import EventDialog, TaskDialog
 
 APP_TITLE = "SuperScheduler"
 DATA_FILE = Path(__file__).with_name("superscheduler_data.json")
@@ -852,9 +852,9 @@ class TaskPanel(wx.Panel):
             menu.Bind(wx.EVT_MENU, lambda _event: self.delete_selected(_event), id=delete_task_id)
 
             # Delete task but handle recurrence
-            if task.reccurance is not None:
+            if task.recurrence is not None:
                 delete_w_reccur_id = wx.Window.NewControlId()
-                menu.Append(delete_w_reccur_id, "Delete & Reccur Task")
+                menu.Append(delete_w_reccur_id, "Delete & Recur Task")
                 menu.Bind(wx.EVT_MENU, lambda _event: self.delete_selected(_event, True), id=delete_w_reccur_id)
 
 
@@ -871,7 +871,7 @@ class TaskPanel(wx.Panel):
         added_tasks = 0
         for i in range(len(tasks)):
             task = self.tasks[i]
-            if (not task.done) and (task.due is not None) and (task.due < datetime.today().astimezone()) and (task.reccurance is not None):
+            if (not task.done) and (task.due is not None) and (task.due < datetime.today().astimezone()) and (task.recurrence is not None):
                 self.add_task(task.copy(True))
                 added_tasks +=1
         print("Added new tasks: ", added_tasks)
@@ -899,12 +899,12 @@ class TaskPanel(wx.Panel):
         self.refresh()
         self.on_change()
 
-    def delete_selected(self, _event: wx.Event, handleReccurance : bool = False) -> None:
+    def delete_selected(self, _event: wx.Event, handleRecurrence : bool = False) -> None:
         selection = self.task_list.GetSelection()
         if selection == wx.NOT_FOUND:
             return
         selected_task = self.tasks[selection]
-        if handleReccurance and selected_task.reccurance:
+        if handleRecurrence and selected_task.recurrence:
             self.add_task(selected_task.copy())
         del self.tasks[selection]
         self.refresh()
@@ -1217,7 +1217,7 @@ class SchedulerFrame(wx.Frame):
             task.title = edited_task.title
             task.priority = edited_task.priority
             task.due = edited_task.due
-            task.reccurance = edited_task.reccurance
+            task.recurrence = edited_task.recurrence
             self.save()
             self.task_panel.refresh()
         finally:

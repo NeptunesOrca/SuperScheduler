@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from time_management import parse_datetime
 
-class Reccurrance:
+class Recurrence:
     def __init__(self, date : datetime, duration : timedelta, useDateAsStart : bool = True):
         self.start : datetime
         self.end : datetime
@@ -18,7 +18,7 @@ class Reccurrance:
         return datetime.now() > self.end
     
     @classmethod
-    def from_dict(cls, payload:dict) -> Reccurrance:
+    def from_dict(cls, payload:dict) -> Recurrence:
         return cls(
             # Field   | Value                             | Default
             date =     parse_datetime(payload["start"]),
@@ -33,13 +33,13 @@ class Reccurrance:
             "duration": int(self.duration.total_seconds())
         }
 
-def serialize_reccurance_or_none(value : Reccurrance | None):
+def serialize_recurrence_or_none(value : Recurrence | None):
     if not value:
         return None
     return value.to_dict()
 
 
-def deserialize_reccurance_or_none(input: str | dict) -> Reccurrance | None:
+def deserialize_recurrence_or_none(input: str | dict) -> Recurrence | None:
     if type(input) is dict:
-        return Reccurrance.from_dict(input)
+        return Recurrence.from_dict(input)
     return None

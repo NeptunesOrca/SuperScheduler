@@ -5,7 +5,7 @@ from conditional_panel import ConditionalPanel
 from datetime_panels import DateEntryCtrl, DurationSelector
 
 from time_management import *
-from reccurance import Reccurrance
+from recurrence import Recurrence
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 
@@ -108,14 +108,14 @@ class EventDialog(wx.Dialog):
             self.google_checkbox.IsChecked() and self.google_enabled,
         )
 
-def format_recurrence_summary(reccurance: Recurrence | None) -> str:
+def format_recurrence_summary(recurrence: Recurrence | None) -> str:
     """Format a recurrence object as a human-readable summary."""
-    if not reccurance:
+    if not recurrence:
         return "No recurrence"
     
-    start_str = reccurance.start.strftime("%b %d, %Y at %H:%M")
-    end_str = reccurance.end.strftime("%b %d, %Y at %H:%M")
-    duration_hours = reccurance.duration.total_seconds() / 3600
+    start_str = recurrence.start.strftime("%b %d, %Y at %H:%M")
+    end_str = recurrence.end.strftime("%b %d, %Y at %H:%M")
+    duration_hours = recurrence.duration.total_seconds() / 3600
     
     if duration_hours == int(duration_hours):
         duration_str = f"{int(duration_hours)} hour{'s' if duration_hours != 1 else ''}"
@@ -136,7 +136,7 @@ class TaskDialog(wx.Dialog):
     ):
         super().__init__(parent, title=title, size=(450, 380)) #type:ignore
         self.task = task
-        self.current_recurrence = task.reccurance
+        self.current_recurrence = task.recurrence
 
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -186,7 +186,7 @@ class TaskDialog(wx.Dialog):
         self.delete_recurrence_button = wx.Button(recur_button_panel, label="Remove Recurrence")
         self.recurrence_duration = DurationSelector(panel, prefix_text="Every")
 
-        hasRecurrence = bool(self.task.reccurance is not None)
+        hasRecurrence = bool(self.task.recurrence is not None)
         self.add_recurrence_button.Enable(not hasRecurrence)
         self.delete_recurrence_button.Enable(hasRecurrence)
         self.recurrence_duration.Enable(hasRecurrence)
@@ -248,7 +248,7 @@ class TaskDialog(wx.Dialog):
         if not recurrdate:
             recurrAtEnd = False
             recurrdate = self.task.created
-        self.task.reccurance = Reccurrance(recurrdate, self.recurrence_duration.GetTimedelta(), useDateAsStart=not recurrAtEnd)
+        self.task.recurrence = Recurrence(recurrdate, self.recurrence_duration.GetTimedelta(), useDateAsStart=not recurrAtEnd)
 
         # Disable add, enable edit and delete UI
         self.add_recurrence_button.Disable()
@@ -261,7 +261,7 @@ class TaskDialog(wx.Dialog):
             if dialog.ShowModal() != wx.ID_OK:
                 return
             try:
-                self.current_recurrence = dialog.get_reccurance()
+                self.current_recurrence = dialog.get_recurrence()
                 self.recurrence_summary.SetLabel(format_recurrence_summary(self.current_recurrence))
                 self.delete_recurrence_button.Enable(self.current_recurrence is not None)
             except ValueError as exc:
@@ -272,7 +272,7 @@ class TaskDialog(wx.Dialog):
 
     def on_delete_recurrence(self, event: wx.Event) -> None:
         # Remove recurrence
-        self.task.reccurance = None
+        self.task.recurrence = None
         
         # Enable add, disable delete and duration UI
         self.add_recurrence_button.Enable()

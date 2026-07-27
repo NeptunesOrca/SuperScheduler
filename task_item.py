@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import copy
 
 from time_management import serialize_datetime_or_none, parse_datetime_or_none, parse_datetime
-from reccurance import Reccurrance, serialize_reccurance_or_none, deserialize_reccurance_or_none
+from recurrence import Recurrence, serialize_recurrence_or_none, deserialize_recurrence_or_none
 
 @dataclass
 class TaskItem:
@@ -14,20 +14,20 @@ class TaskItem:
     done: bool = False
     due: datetime | None = None
     priority: int = 0
-    reccurance : Reccurrance | None = None
+    recurrence : Recurrence | None = None
 
-    def copy(self, handleReccurance : bool = True, copyFresh = True) -> "TaskItem":
+    def copy(self, handleRecurrence : bool = True, copyFresh = True) -> "TaskItem":
         '''
         Creates a unique copy of the TaskItem, with a few automatic handling options
 
         Parameters
         ----------
-        handleReccurance : bool, default True
+        handleRecurrence : bool, default True
             If True, automatically handles recurrances, such that the copied task will bump its Recurrance forward
             (that is, the copied start date will be directly after the end date of the original, with the same duration).
             If the original TaskItem has a due date, it will also be bumped forward by the Recurrance duration.
             If the original TaskItem has no Recurrance, will be ignored.
-            If False, the copied task will retain the original Reccurrance and due date, if applicable.
+            If False, the copied task will retain the original Recurrence and due date, if applicable.
         
         copyFresh : bool, default True
             If True, the copied task will always have its done attribute set to False.
@@ -38,12 +38,12 @@ class TaskItem:
         copied.task_id = str(uuid.uuid4())
         if copyFresh:
             copied.done = False
-        if handleReccurance and (self.reccurance is not None):
+        if handleRecurrence and (self.recurrence is not None):
             copied = copy.deepcopy(self)
-            oldRecurrance = self.reccurance
-            copied.reccurance = Reccurrance(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
+            oldRecurrance = self.recurrence
+            copied.recurrence = Recurrence(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
             if self.due is not None:
-                copied.due = self.due + self.reccurance.duration
+                copied.due = self.due + self.recurrence.duration
         return copied
 
     @classmethod
@@ -56,7 +56,7 @@ class TaskItem:
             done=           payload.get("done",                         False),
             due=            parse_datetime_or_none(payload.get("due", "None")),
             priority=       payload.get("priority",                     0),
-            reccurance=    deserialize_reccurance_or_none(payload.get("reccurance", "None")),
+            recurrence=    deserialize_recurrence_or_none(payload.get("recurrence", "None")),
         )
 
     def to_dict(self) -> dict:
@@ -67,5 +67,5 @@ class TaskItem:
             "done": self.done,
             "due": serialize_datetime_or_none(self.due),
             "priority": self.priority,
-            "reccurance": serialize_reccurance_or_none(self.reccurance),
+            "recurrence": serialize_recurrence_or_none(self.recurrence),
         }
