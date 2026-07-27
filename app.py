@@ -828,7 +828,14 @@ class TaskPanel(wx.Panel):
         selection = self.task_list.GetSelection()
         menu = wx.Menu()
         
+        # New Task option
+        new_task_id = wx.Window.NewControlId()
+        menu.Append(new_task_id, "New Task")
+        title = "New Task"
+        menu.Bind(wx.EVT_MENU, lambda _event, title=title: self.generate_task(_event, title) , id=new_task_id)
+
         if selection != wx.NOT_FOUND and selection < len(self.tasks):
+            menu.AppendSeparator()
             task = self.tasks[selection]
             
             # Edit task option
