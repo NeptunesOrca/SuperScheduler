@@ -858,7 +858,11 @@ class TaskPanel(wx.Panel):
             menu.Append(delete_task_id, "Delete Task")
             menu.Bind(wx.EVT_MENU, lambda _event: self.delete_selected(_event), id=delete_task_id)
 
-            
+            # Delete task but handle recurrence
+            if task.reccurance is not None:
+                delete_w_reccur_id = wx.Window.NewControlId()
+                menu.Append(delete_w_reccur_id, "Delete & Reccur Task")
+                menu.Bind(wx.EVT_MENU, lambda _event: self.delete_selected(_event, True), id=delete_w_reccur_id)
 
 
         click_pos = event.GetPosition()
