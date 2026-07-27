@@ -844,7 +844,9 @@ class TaskPanel(wx.Panel):
             menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task(task), id=edit_task_id)
 
             # Duplicate
-
+            duplicate_task_id = wx.Window.NewControlId()
+            menu.Append(duplicate_task_id, "Duplicate Task")
+            menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.add_task(task.copy()), id=duplicate_task_id)
 
             # Delete task option
             delete_task_id = wx.Window.NewControlId()
