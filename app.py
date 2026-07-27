@@ -893,7 +893,7 @@ class TaskPanel(wx.Panel):
         selectedTask = self.tasks[index]
         selectedTask.done = self.task_list.IsChecked(index)
         if selectedTask.done:
-            self.add_task(selectedTask.copy(True))
+            self.add_task(selectedTask.copy())
         self.on_change()
     
     '''I'm not sure if this will ever be useful, but it's here
