@@ -883,8 +883,21 @@ class TaskPanel(wx.Panel):
 
     def toggle_task(self, event: wx.CommandEvent) -> None:
         index = event.GetSelection()
-        self.tasks[index].done = self.task_list.IsChecked(index)
+        selectedTask = self.tasks[index]
+        selectedTask.done = self.task_list.IsChecked(index)
+        if selectedTask.done:
+            self.add_task(selectedTask.copy(True))
         self.on_change()
+    
+    '''I'm not sure if this will ever be useful, but it's here
+    def complete_task(self, event: wx.CommandEvent) -> None:
+        index = event.GetSelection()
+        self.tasks[index].done = True
+        self.task_list.Check(index, True)
+        self.on_change()
+    '''
+
+        
 
 
 class SchedulerFrame(wx.Frame):
