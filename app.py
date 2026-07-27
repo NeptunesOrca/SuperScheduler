@@ -874,6 +874,7 @@ class TaskPanel(wx.Panel):
         if not title:
             return
         self.add_task(TaskItem(title=title))
+        self.on_edit_task(self.tasks[-1]) #since tasks are appended to the end of the list by add_task(), just get the final one in the list
     
     def add_task(self, task : TaskItem) -> None:
         self.tasks.append(task)
@@ -973,7 +974,7 @@ class SchedulerFrame(wx.Frame):
         )
         self.month_calendar = MonthCalendarCanvas(
             self.calendar_panel,
-            self.new_event_dialog,
+            self.new_event_dialog, #type:ignore
             self.open_existing_event_dialog,
             self.delete_event,
             self.show_week_for_day,
