@@ -255,16 +255,16 @@ class ScheduleCanvas(wx.ScrolledWindow):
         paste_id = wx.Window.NewControlId()
         delete_id = wx.Window.NewControlId()
         copy_id = wx.Window.NewControlId()
-        rclick_menu.Append(new_id, "New event")
+        rclick_menu.Append(new_id, "New Event")
         rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(click_day, hour, 0, "New Event"), id=new_id)
         if selected_event is None:
-            rclick_menu.Append(paste_id, "Paste event")
+            rclick_menu.Append(paste_id, "Paste Event")
         else:
             rclick_menu.AppendSeparator()
-            rclick_menu.Append(edit_id, "Edit event")
-            rclick_menu.Append(copy_id, "Copy event")
-            rclick_menu.Append(paste_id, "Paste event")
-            rclick_menu.Append(delete_id, "Delete event")
+            rclick_menu.Append(edit_id, "Edit Event")
+            rclick_menu.Append(copy_id, "Copy Event")
+            rclick_menu.Append(paste_id, "Paste Event")
+            rclick_menu.Append(delete_id, "Delete Event")
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
             rclick_menu.Bind(wx.EVT_MENU, lambda _event: self.on_copy_event(selected_event), id=copy_id)
@@ -569,15 +569,15 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
 
         menu = wx.Menu()
         new_id = wx.Window.NewControlId()
-        menu.Append(new_id, "New event")
+        menu.Append(new_id, "New Event")
         menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(selected_day or date.today(), 9), id=new_id)
 
         if selected_event:
             edit_id = wx.Window.NewControlId()
             delete_id = wx.Window.NewControlId()
             menu.AppendSeparator()
-            menu.Append(edit_id, "Edit event")
-            menu.Append(delete_id, "Delete event")
+            menu.Append(edit_id, "Edit Event")
+            menu.Append(delete_id, "Delete Event")
             menu.Bind(wx.EVT_MENU, lambda _event: self.on_edit_event(selected_event), id=edit_id)
             menu.Bind(wx.EVT_MENU, lambda _event: self.on_delete_event(selected_event), id=delete_id)
 
