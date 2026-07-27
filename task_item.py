@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
+import copy
 
 from time_management import serialize_datetime_or_none, parse_datetime_or_none, parse_datetime
 from reccurance import Reccurrance, serialize_reccurance_or_none, deserialize_reccurance_or_none
@@ -14,6 +15,16 @@ class TaskItem:
     due: datetime | None = None
     priority: int = 0
     reccurance : Reccurrance | None = None
+
+    def copy(self, handleReccurance : bool = True) -> "TaskItem":
+        copied = copy.deepcopy(self)
+        if handleReccurance and self.done and (self.reccurance is not None):
+            copied = copy.deepcopy(self)
+            oldRecurrance = self.reccurance
+            copied.reccurance = Reccurrance(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
+            if self.due is not None:
+                copied.due = self.due + self.reccurance.duration
+        return copied
 
     @classmethod
     def from_dict(cls, payload: dict) -> "TaskItem":
