@@ -843,6 +843,7 @@ class TaskPanel(wx.Panel):
             menu.Append(edit_task_id, "Edit Task")
             menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task(task), id=edit_task_id)
             
+            '''
             # Edit recurrence option
             if self.on_edit_task_reccurance is not None:
                 edit_recurrence_id = wx.Window.NewControlId()
