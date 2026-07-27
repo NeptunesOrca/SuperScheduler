@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import calendar
 import uuid
+import copy
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -909,7 +910,7 @@ class TaskPanel(wx.Panel):
 
 class SchedulerFrame(wx.Frame):
     def __init__(self):
-        super().__init__(None, title=APP_TITLE, size=(1180, 760))
+        super().__init__(None, title=APP_TITLE, size=(1180, 760)) #type:ignore
         self.storage = AppStorage(DATA_FILE)
         self.local_events, self.tasks = self.storage.load()
         self.google_client = GoogleCalendarClient(CREDENTIALS_FILE, TOKEN_FILE)
