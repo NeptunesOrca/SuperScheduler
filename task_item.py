@@ -39,15 +39,11 @@ class TaskItem:
         if copyFresh:
             copied.done = False
         if handleReccurance and (self.reccurance is not None):
-            print("Copy!")
             copied = copy.deepcopy(self)
             oldRecurrance = self.reccurance
             copied.reccurance = Reccurrance(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
             if self.due is not None:
                 copied.due = self.due + self.reccurance.duration
-                print("Original due date:",self.due)
-                print("Duration:",self.reccurance.duration)
-                print("New Due Date:",copied.due)
         return copied
 
     @classmethod
