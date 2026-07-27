@@ -900,10 +900,13 @@ class TaskPanel(wx.Panel):
         self.refresh()
         self.on_change()
 
-    def delete_selected(self, _event: wx.Event) -> None:
+    def delete_selected(self, _event: wx.Event, handleReccurance : bool = False) -> None:
         selection = self.task_list.GetSelection()
         if selection == wx.NOT_FOUND:
             return
+        selected_task = self.tasks[selection]
+        if handleReccurance and selected_task.reccurance:
+            self.add_task(selected_task.copy())
         del self.tasks[selection]
         self.refresh()
         self.on_change()
