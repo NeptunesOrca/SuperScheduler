@@ -887,8 +887,10 @@ class TaskPanel(wx.Panel):
             self.task_list.Append(label)
             self.task_list.Check(index, task.done)
 
-    def generate_task(self, _event: wx.Event) -> None:
-        title = self.task_input.GetValue().strip()
+    def generate_task(self, _event: wx.Event, title : str | None = None) -> None:
+        if title is None: # if no provided title in command, use the provided value in the task input
+            title = self.task_input.GetValue().strip()
+        
         if not title:
             return
         self.add_task(TaskItem(title=title))
