@@ -742,7 +742,6 @@ class TaskPanel(wx.Panel):
         on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None],
         on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None],
         on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None],
-        on_edit_task_reccurance: Callable[[TaskItem], None],
         on_edit_task: Callable[[TaskItem], None],
     ):
         super().__init__(parent)
@@ -751,7 +750,6 @@ class TaskPanel(wx.Panel):
         self.on_create_event_from_task = on_create_event_from_task
         self.on_drop_task_to_schedule = on_drop_task_to_schedule
         self.on_task_preview_move = on_task_preview_move
-        self.on_edit_task_reccurance = on_edit_task_reccurance
         self.on_edit_task = on_edit_task
         self.dragged_task: TaskItem | None = None
 
@@ -1011,7 +1009,6 @@ class SchedulerFrame(wx.Frame):
             self.create_event_from_task,
             self.handle_task_drop_to_schedule,
             self.schedule.set_task_preview,
-            self.edit_task_reccurance,
             self.edit_task,
         )
         self.task_panel.set_tasks(self.tasks)
@@ -1205,21 +1202,6 @@ class SchedulerFrame(wx.Frame):
         approximate_minute = rounded_quarter_hour(minutes)
         target_day = self.schedule.week_start + timedelta(days=day_index)
         self.create_event_from_task(task, target_day, hour, approximate_minute)
-
-    def edit_task_reccurance(self, task: TaskItem) -> None:
-        dialog = ReoccurranceDialog(self, "Edit task recurrence", task.reccurance)
-        try:
-            if dialog.ShowModal() != wx.ID_OK:
-                return
-            try:
-                task.reccurance = dialog.get_reccurance()
-            except ValueError as exc:
-                wx.MessageBox(str(exc), "Recurrence needs a fix", wx.OK | wx.ICON_WARNING)
-                return
-            self.save()
-            self.task_panel.refresh()
-        finally:
-            dialog.Destroy()
 
     def edit_task(self, task: TaskItem) -> None:
         dialog = TaskDialog(self, "Edit Task", task)
