@@ -571,6 +571,7 @@ class MonthCalendarCanvas(wx.ScrolledWindow):
         new_id = wx.Window.NewControlId()
         menu.Append(new_id, "New event")
         menu.Bind(wx.EVT_MENU, lambda _event: self.on_new_event(selected_day or date.today(), 9), id=new_id)
+
         if selected_event:
             edit_id = wx.Window.NewControlId()
             delete_id = wx.Window.NewControlId()
@@ -831,8 +832,7 @@ class TaskPanel(wx.Panel):
         # New Task option
         new_task_id = wx.Window.NewControlId()
         menu.Append(new_task_id, "New Task")
-        title = "New Task"
-        menu.Bind(wx.EVT_MENU, lambda _event, title=title: self.generate_task(_event, title) , id=new_task_id)
+        menu.Bind(wx.EVT_MENU, lambda _event: self.generate_task(_event, "New Task") , id=new_task_id)
 
         if selection != wx.NOT_FOUND and selection < len(self.tasks):
             menu.AppendSeparator()
@@ -842,14 +842,7 @@ class TaskPanel(wx.Panel):
             edit_task_id = wx.Window.NewControlId()
             menu.Append(edit_task_id, "Edit Task")
             menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task(task), id=edit_task_id)
-            
-            '''
-            # Edit recurrence option
-            if self.on_edit_task_reccurance is not None:
-                edit_recurrence_id = wx.Window.NewControlId()
-                menu.Append(edit_recurrence_id, "Edit recurrence")
-                menu.Bind(wx.EVT_MENU, lambda _event, task=task: self.on_edit_task_reccurance(task), id=edit_recurrence_id)
-            '''
+
             # Duplicate
 
 
