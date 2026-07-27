@@ -738,11 +738,11 @@ class TaskPanel(wx.Panel):
         self,
         parent: wx.Window,
         on_change: Callable[[], None],
-        on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None] | None = None,
-        on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None] | None = None,
-        on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None] | None = None,
-        on_edit_task_reccurance: Callable[[TaskItem], None] | None = None,
-        on_edit_task: Callable[[TaskItem], None] | None = None,
+        on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None],
+        on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None],
+        on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None],
+        on_edit_task_reccurance: Callable[[TaskItem], None],
+        on_edit_task: Callable[[TaskItem], None],
     ):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
