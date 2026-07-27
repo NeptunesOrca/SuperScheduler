@@ -9,12 +9,12 @@ from typing import Callable
 
 import wx
 import wx.adv
-import copy
 
 from time_management import *
 from schedule_event import ScheduleEvent
 from task_item import TaskItem
 from serialization import AppStorage
+from reccurance import Reccurrance
 from google_calendar_client import GoogleCalendarClient
 from edit_dialogs import EventDialog, ReoccurranceDialog, TaskDialog
 
@@ -770,9 +770,9 @@ class TaskPanel(wx.Panel):
         sizer.Add(delete_button, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 12)
         self.SetSizer(sizer)
 
-        add_button.Bind(wx.EVT_BUTTON, self.add_task)
+        add_button.Bind(wx.EVT_BUTTON, self.generate_task)
         delete_button.Bind(wx.EVT_BUTTON, self.delete_selected)
-        self.task_input.Bind(wx.EVT_TEXT_ENTER, self.add_task)
+        self.task_input.Bind(wx.EVT_TEXT_ENTER, self.generate_task)
         self.task_list.Bind(wx.EVT_CHECKLISTBOX, self.toggle_task)
         self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_begin_drag)
         self.task_list.Bind(wx.EVT_LEFT_UP, self.on_task_drop)
@@ -816,7 +816,7 @@ class TaskPanel(wx.Panel):
                 self.on_edit_task(self.tasks[selection])
             #self.on_create_event_from_task(self.tasks[selection], None, None) # used to automatically create event on double click
         else: 
-            self.add_task(event) # create new task
+            self.generate_task(event) # create new task
             self.on_edit_task(self.tasks[-1]) #edit the last task, since we just created it
         event.Skip()
 
@@ -861,11 +861,14 @@ class TaskPanel(wx.Panel):
             self.task_list.Append(label)
             self.task_list.Check(index, task.done)
 
-    def add_task(self, _event: wx.Event) -> None:
+    def generate_task(self, _event: wx.Event) -> None:
         title = self.task_input.GetValue().strip()
         if not title:
             return
-        self.tasks.append(TaskItem(title=title))
+        self.add_task(TaskItem(title=title))
+    
+    def add_task(self, task : TaskItem) -> None:
+        self.tasks.append(task)
         self.task_input.Clear()
         self.refresh()
         self.on_change()
