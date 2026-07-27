@@ -16,9 +16,28 @@ class TaskItem:
     priority: int = 0
     reccurance : Reccurrance | None = None
 
-    def copy(self, handleReccurance : bool = True) -> "TaskItem":
+    def copy(self, handleReccurance : bool = True, copyFresh = True) -> "TaskItem":
+        '''
+        Creates a unique copy of the TaskItem, with a few automatic handling options
+
+        Parameters
+        ----------
+        handleReccurance : bool, default True
+            If True, automatically handles recurrances, such that the copied task will bump its Recurrance forward
+            (that is, the copied start date will be directly after the end date of the original, with the same duration).
+            If the original TaskItem has a due date, it will also be bumped forward by the Recurrance duration.
+            If the original TaskItem has no Recurrance, will be ignored.
+            If False, the copied task will retain the original Reccurrance and due date, if applicable.
+        
+        copyFresh : bool, default True
+            If True, the copied task will always have its done attribute set to False.
+            If False, the copied task will retain the done value of the original.
+
+        '''
         copied = copy.deepcopy(self)
         copied.task_id = str(uuid.uuid4())
+        if copyFresh:
+            copied.done = False
         if handleReccurance and (self.reccurance is not None):
             print("Copy!")
             copied = copy.deepcopy(self)
@@ -26,6 +45,9 @@ class TaskItem:
             copied.reccurance = Reccurrance(oldRecurrance.end+timedelta(days=1), oldRecurrance.duration)
             if self.due is not None:
                 copied.due = self.due + self.reccurance.duration
+                print("Original due date:",self.due)
+                print("Duration:",self.reccurance.duration)
+                print("New Due Date:",copied.due)
         return copied
 
     @classmethod
