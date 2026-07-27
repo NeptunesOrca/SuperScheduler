@@ -852,6 +852,9 @@ class TaskPanel(wx.Panel):
 
     def set_tasks(self, tasks: list[TaskItem]) -> None:
         self.tasks = tasks
+        for task in self.tasks:
+            if task.due and (task.due < datetime.today()) and (task.reccurance is not None):
+                self.add_task(task.copy(True))
         self.refresh()
 
     def refresh(self) -> None:
