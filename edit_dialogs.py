@@ -21,7 +21,7 @@ class EventDialog(wx.Dialog):
         event: ScheduleEvent | None = None,
         event_title : str | None = None
     ):
-        super().__init__(parent, title=title, size=(420, 330))
+        super().__init__(parent, title=title, size=(420, 330)) #type:ignore
         self.google_enabled = google_enabled
         self.event = event
 
@@ -46,7 +46,7 @@ class EventDialog(wx.Dialog):
         self.end_input = wx.TextCtrl(panel, value=f"{end_hour:02d}:{end_minute:02d}")
         if event:
             self.end_input.SetValue(event.end.strftime("%H:%M"))
-        self.description_input = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 70))
+        self.description_input = wx.TextCtrl(panel, style=wx.TE_MULTILINE, size=(-1, 70)) #type:ignore
         self.google_checkbox = wx.CheckBox(panel, label="Add to Google Calendar")
         self.google_checkbox.Enable(google_enabled and event is None)
         if event:
@@ -111,7 +111,7 @@ class EventDialog(wx.Dialog):
 
 class ReoccurranceDialog(wx.Dialog):
     def __init__(self, parent: wx.Window, title: str, reccurance: Reccurrance | None = None, allowStartChange = False):
-        super().__init__(parent, title=title, size=(380, 280))
+        super().__init__(parent, title=title, size=(380, 280)) #type:ignore
 
         panel = wx.Panel(self)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -163,8 +163,8 @@ class ReoccurranceDialog(wx.Dialog):
         self.set_controls_enabled(reccurance is not None)
 
     def set_controls_enabled(self, enabled: bool) -> None:
-        self.start_date_input.Enable(enabled)
-        self.start_time_input.Enable(enabled)
+        self.start_date_input.Enable(enabled) #type:ignore
+        self.start_time_input.Enable(enabled) #type:ignore
         self.duration_hours.Enable(enabled)
         self.duration_minutes.Enable(enabled)
 
@@ -175,8 +175,8 @@ class ReoccurranceDialog(wx.Dialog):
         if not self.enabled_checkbox.IsChecked():
             return None
 
-        start_date = self.start_date_input.GetValue()
-        start_time = parse_time_text(self.start_time_input.GetValue())
+        start_date = self.start_date_input.GetValue() #type:ignore
+        start_time = parse_time_text(self.start_time_input.GetValue()) #type:ignore
         start_dt = datetime.combine(start_date, start_time).replace(tzinfo=local_tz())
         duration = timedelta(hours=self.duration_hours.GetValue(), minutes=self.duration_minutes.GetValue())
         if duration <= timedelta(0):
@@ -211,7 +211,7 @@ class TaskDialog(wx.Dialog):
         title: str,
         task: TaskItem,
     ):
-        super().__init__(parent, title=title, size=(450, 380))
+        super().__init__(parent, title=title, size=(450, 380)) #type:ignore
         self.task = task
         self.current_recurrence = task.reccurance
 
