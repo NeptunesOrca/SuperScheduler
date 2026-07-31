@@ -914,7 +914,7 @@ class TaskPanel(wx.Panel):
         index = event.GetSelection()
         selectedTask = self.tasks[index]
         selectedTask.done = self.task_list.IsChecked(index)
-        if selectedTask.done:
+        if selectedTask.done and selectedTask.recurrence:
             self.add_task(selectedTask.copy())
         self.on_change()
     
