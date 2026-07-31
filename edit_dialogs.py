@@ -284,10 +284,10 @@ class TaskDialog(wx.Dialog):
         title = self.title_input.GetValue().strip()
         if not title:
             raise ValueError("Title is required.")
+        self.task.title = title
 
         self.task.priority = self.priority_input.GetValue()
 
-        due = None
         if self.task.due:
             due_date = self.due_date_input.GetValue()
             due = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=local_tz())
