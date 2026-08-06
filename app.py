@@ -739,6 +739,7 @@ class TaskPanel(wx.Panel):
         self,
         parent: wx.Window,
         on_change: Callable[[], None],
+        store_tasks: Callable[[list[TaskItem]], None],
         on_create_event_from_task: Callable[[TaskItem, date | None, int | None], None],
         on_drop_task_to_schedule: Callable[[TaskItem, wx.Point], None],
         on_task_preview_move: Callable[[TaskItem | None, wx.Point | None], None],
@@ -747,6 +748,7 @@ class TaskPanel(wx.Panel):
         super().__init__(parent)
         self.tasks: list[TaskItem] = []
         self.on_change = on_change
+        self.store_tasks = store_tasks
         self.on_create_event_from_task = on_create_event_from_task
         self.on_drop_task_to_schedule = on_drop_task_to_schedule
         self.on_task_preview_move = on_task_preview_move
@@ -871,8 +873,9 @@ class TaskPanel(wx.Panel):
         added_tasks = 0
         for i in range(len(tasks)):
             task = self.tasks[i]
-            if (not task.done) and (task.due is not None) and (task.due < datetime.today().astimezone()) and (task.recurrence is not None):
-                self.add_task(task.copy(True))
+            if (not task.done) and (task.recurrence is not None) and ((task.due is not None) and (task.due < datetime.today().astimezone())):
+                print("Adding new task from recurrence: ", task.title, ", due: ", task.due, ", recurrence: ", task.recurrence, ", done: ", task.done)
+                self.add_task(task.copy())
                 added_tasks +=1
         print("Added new tasks: ", added_tasks)
         self.refresh()
@@ -913,6 +916,7 @@ class TaskPanel(wx.Panel):
     def delete_all_completed(self, _event: wx.Event) -> None:
         incomplete_tasks = [task for task in self.tasks if not task.done] #O(n) instead of O(n^2) by using list comprehension instead of removing from the list while iterating
         self.tasks = incomplete_tasks
+        self.store_tasks(self.tasks)
         self.refresh()
         self.on_change()
 
@@ -920,8 +924,11 @@ class TaskPanel(wx.Panel):
         index = event.GetSelection()
         selectedTask = self.tasks[index]
         selectedTask.done = self.task_list.IsChecked(index)
-        if selectedTask.done and selectedTask.recurrence:
-            self.add_task(selectedTask.copy())
+        if selectedTask.done and (selectedTask.recurrence is not None):
+            copied_task = selectedTask.copy()
+            print("Copied task: ", copied_task.title, ", copy is done?", copied_task.done)
+            self.add_task(copied_task)
+        self.refresh()
         self.on_change()
     
     '''I'm not sure if this will ever be useful, but it's here
@@ -1012,6 +1019,7 @@ class SchedulerFrame(wx.Frame):
         self.task_panel = TaskPanel(
             self.body,
             self.save,
+            self.store_tasks,
             self.create_event_from_task,
             self.handle_task_drop_to_schedule,
             self.schedule.set_task_preview,
@@ -1183,6 +1191,10 @@ class SchedulerFrame(wx.Frame):
         month = month_index % 12 + 1
         _weekday, days_in_month = calendar.monthrange(year, month)
         return date(year, month, min(month_start_value.day, days_in_month))
+
+    def store_tasks(self, tasks: list[TaskItem]) -> None:
+        self.tasks = tasks
+        self.save()
 
     def create_event_from_task(self, task: TaskItem, initial_day: date | None = None, initial_hour: int | None = None, initial_minute: int = 0) -> None:
         if initial_day is None:
