@@ -761,7 +761,7 @@ class TaskPanel(wx.Panel):
         self.task_input.SetHint("New task")
         self.task_list = wx.CheckListBox(self)
         add_button = wx.Button(self, label="Add")
-        delete_button = wx.Button(self, label="Delete selected")
+        delete_button = wx.Button(self, label="Delete all completed")
 
         sizer.Add(header, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
         sizer.Add(self.task_input, 0, wx.ALL | wx.EXPAND, 12)
@@ -771,7 +771,7 @@ class TaskPanel(wx.Panel):
         self.SetSizer(sizer)
 
         add_button.Bind(wx.EVT_BUTTON, self.generate_task)
-        delete_button.Bind(wx.EVT_BUTTON, self.delete_selected)
+        delete_button.Bind(wx.EVT_BUTTON, self.delete_all_completed)
         self.task_input.Bind(wx.EVT_TEXT_ENTER, self.generate_task)
         self.task_list.Bind(wx.EVT_CHECKLISTBOX, self.toggle_task)
         self.task_list.Bind(wx.EVT_LEFT_DOWN, self.on_task_begin_drag)
@@ -909,6 +909,11 @@ class TaskPanel(wx.Panel):
         del self.tasks[selection]
         self.refresh()
         self.on_change()
+
+    def delete_all_completed(self) -> None:
+        for task in self.tasks:
+            if task.done:
+                self.tasks.remove(task)
 
     def toggle_task(self, event: wx.CommandEvent) -> None:
         index = event.GetSelection()
