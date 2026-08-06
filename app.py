@@ -910,10 +910,12 @@ class TaskPanel(wx.Panel):
         self.refresh()
         self.on_change()
 
-    def delete_all_completed(self) -> None:
+    def delete_all_completed(self, _event: wx.Event) -> None:
         for task in self.tasks:
             if task.done:
                 self.tasks.remove(task)
+        self.refresh()
+        self.on_change()
 
     def toggle_task(self, event: wx.CommandEvent) -> None:
         index = event.GetSelection()
