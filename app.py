@@ -911,9 +911,8 @@ class TaskPanel(wx.Panel):
         self.on_change()
 
     def delete_all_completed(self, _event: wx.Event) -> None:
-        for task in self.tasks:
-            if task.done:
-                self.tasks.remove(task)
+        incomplete_tasks = [task for task in self.tasks if not task.done] #O(n) instead of O(n^2) by using list comprehension instead of removing from the list while iterating
+        self.tasks = incomplete_tasks
         self.refresh()
         self.on_change()
 
