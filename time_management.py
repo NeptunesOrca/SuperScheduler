@@ -20,7 +20,7 @@ def guess_unit(total_seconds) -> tuple[TimeUnits, float]:
     return (TimeUnits.SECONDS, total_seconds)
     
 
-def increment_datetime(dt: datetime, amount: int, unit: TimeUnits) -> datetime:
+def increment_datetime(dt: datetime, amount: int | float, unit: TimeUnits) -> datetime:
     """Increment a datetime by a specified amount of time units."""
     if unit == TimeUnits.SECONDS:
         return dt + timedelta(seconds=amount)
