@@ -1,6 +1,46 @@
 from datetime import date, datetime, time, timedelta
+from enum import Enum
 
 import wx
+
+class TimeUnits(Enum):
+    # Time units in seconds
+    SECONDS = 1
+    MINUTES = 60
+    HOURS = 3600
+    DAYS = 86400
+    WEEKS = 604800
+    MONTHS = 2592000  # Approximated for 30 days
+    YEARS = 31536000  # Approximated for 365 days
+
+def guess_unit(total_seconds) -> tuple[TimeUnits, float]:
+    for unit in TimeUnits:
+        if total_seconds % unit.value == 0:
+            return (unit, total_seconds / unit.value)
+    return (TimeUnits.SECONDS, total_seconds)
+    
+
+def increment_datetime(dt: datetime, amount: int, unit: TimeUnits) -> datetime:
+    """Increment a datetime by a specified amount of time units."""
+    if unit == TimeUnits.SECONDS:
+        return dt + timedelta(seconds=amount)
+    elif unit == TimeUnits.MINUTES:
+        return dt + timedelta(minutes=amount)
+    elif unit == TimeUnits.HOURS:
+        return dt + timedelta(hours=amount)
+    elif unit == TimeUnits.DAYS:
+        return dt + timedelta(days=amount)
+    elif unit == TimeUnits.WEEKS:
+        return dt + timedelta(weeks=amount)
+    elif unit == TimeUnits.MONTHS:
+        # Approximate months as 30 days
+        months = dt.month + amount
+        return dt.replace(month=months)
+    elif unit == TimeUnits.YEARS:
+        years = dt.year + amount
+        return dt.replace(year=years)
+    else:
+        raise ValueError(f"Unsupported time unit: {unit}")
 
 def local_tz():
     return datetime.now().astimezone().tzinfo
