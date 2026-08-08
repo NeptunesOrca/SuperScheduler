@@ -62,32 +62,33 @@ class DateEntryCtrl(wx.Panel):
 
 
 class DurationSelector(wx.Panel):
-    UNITS = ["minutes", "hours", "days", "weeks", "months"] # At some point I should probably make this more generalizable or something
+    UNITS = list(TimeUnits.__members__.keys())
 
-    def __init__(self, parent, default_value=1, default_unit="days", prefix_text: str = ""):
+    def __init__(self, parent, default_value=1, default_unit=TimeUnits.DAYS, prefix_text: str = ""):
         super().__init__(parent)
 
-        self.spin = wx.SpinCtrl(self, min=1, max=999999, initial=default_value)
+        self.amount = wx.SpinCtrl(self, min=1, max=999999, initial=default_value)
         self.unit_choice = wx.Choice(self, choices=self.UNITS)
         self.prefix = wx.StaticText(self, label= prefix_text)
 
-        unit_index = self.UNITS.index(default_unit) if default_unit in self.UNITS else 0
+        unit_index = self.UNITS.index(default_unit.name) if default_unit.name in self.UNITS else 0
         self.unit_choice.SetSelection(unit_index)
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(self.prefix, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-        sizer.Add(self.spin, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        sizer.Add(self.amount, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         sizer.Add(self.unit_choice, 0, wx.ALIGN_CENTER_VERTICAL)
         self.SetSizer(sizer)
 
     def GetValue(self):
-        """Returns (amount, unit_string)."""
-        return self.spin.GetValue(), self.UNITS[self.unit_choice.GetSelection()]
+        """Returns (amount, TimeUnits)."""
+        units = TimeUnits[self.UNITS[self.unit_choice.GetSelection()]]
+        return self.amount.GetValue(), units
 
-    def SetValue(self, amount, unit):
-        self.spin.SetValue(amount)
-        if unit in self.UNITS:
-            self.unit_choice.SetSelection(self.UNITS.index(unit))
+    def SetValue(self, amount, unit : TimeUnits):
+        self.amount.SetValue(amount)
+        if unit.name in self.UNITS:
+            self.unit_choice.SetSelection(self.UNITS.index(unit.name))
 
     def GetTimedelta(self) -> timedelta:
         """Returns a datetime.timedelta approximation (months treated as 30 days)."""
