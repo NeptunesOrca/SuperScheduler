@@ -16,6 +16,17 @@ class Recurrence:
 
     def isExpired(self) -> bool:
         return datetime.now() > self.end
+
+    def editDuration(self, new_duration : float, keepStartDate : bool = True):
+        self.duration = new_duration
+        if keepStartDate:
+            self.end = increment_datetime(self.start, self.duration, self.units)
+        else:
+            self.start = increment_datetime(self.end, -self.duration, self.units)
+
+    def getDurationAsDatetime(self) -> timedelta:
+        """Returns the duration as a datetime.timedelta object, directly from start and end dates"""
+        return self.end - self.start
     
     @classmethod
     def from_dict(cls, payload:dict) -> Recurrence:
