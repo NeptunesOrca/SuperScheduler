@@ -90,18 +90,22 @@ class DurationSelector(wx.Panel):
         if unit.name in self.UNITS:
             self.unit_choice.SetSelection(self.UNITS.index(unit.name))
 
-    def GetTimedelta(self) -> timedelta:
-        """Returns a datetime.timedelta approximation (months treated as 30 days)."""
+    def GetApproximateTimedelta(self) -> timedelta:
+        """Returns a datetime.timedelta approximation (months treated as 30 days, years treated as 365 days)."""
         amount, unit = self.GetValue()
-        if unit == "minutes":
+        if unit == TimeUnits.SECONDS.name:
+            return timedelta(seconds=amount)
+        elif unit == TimeUnits.MINUTES.name:
             return timedelta(minutes=amount)
-        elif unit == "hours":
+        elif unit == TimeUnits.HOURS.name:
             return timedelta(hours=amount)
-        elif unit == "days":
+        elif unit == TimeUnits.DAYS.name:
             return timedelta(days=amount)
-        elif unit == "weeks":
+        elif unit == TimeUnits.WEEKS.name:
             return timedelta(weeks=amount)
-        elif unit == "months":
+        elif unit == TimeUnits.MONTHS.name:
             return timedelta(days=amount * 30)
+        elif unit == TimeUnits.YEARS.name:
+            return timedelta(days=amount * 365)
         else:
             return timedelta()
