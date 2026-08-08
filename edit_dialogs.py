@@ -253,12 +253,15 @@ class TaskDialog(wx.Dialog):
         if not recurrdate:
             recurrAtEnd = False
             recurrdate = self.task.created
-        self.task.recurrence = Recurrence(recurrdate, self.recurrence_duration.GetTimedelta(), useDateAsStart=not recurrAtEnd)
+
+        duration, unit = self.recurrence_duration.GetValue()
+        self.task.recurrence = Recurrence(recurrdate, duration, useDateAsStart=not recurrAtEnd, units=unit)
 
         # Disable add, enable edit and delete UI
         self.add_recurrence_button.Disable()
         self.recurrence_duration.Enable()
         self.delete_recurrence_button.Enable()
+    
     '''
     def on_edit_recurrence(self, event: wx.Event) -> None:
         dialog = ReoccurranceDialog(self, "Edit Task Recurrence", self.current_recurrence, allowStartChange=True)
