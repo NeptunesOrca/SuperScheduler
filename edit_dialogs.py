@@ -180,13 +180,18 @@ class TaskDialog(wx.Dialog):
         self.delete_due_date_button.Bind(wx.EVT_BUTTON, self.on_remove_due_date)
 
         # Recurrence Panels
+        hasRecurrence = bool(self.task.recurrence is not None)
+
         recur_button_panel = wx.Panel(panel)
         recur_button_panel_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.add_recurrence_button = wx.Button(recur_button_panel, label="Add Recurrence")
         self.delete_recurrence_button = wx.Button(recur_button_panel, label="Remove Recurrence")
-        self.recurrence_duration = DurationSelector(panel, prefix_text="Every")
+        # Set initial recurrence duration if it exists
+        if hasRecurrence:
+            self.recurrence_duration = DurationSelector(panel, default_value=int(self.task.recurrence.duration), default_unit=self.task.recurrence.units, prefix_text="Every")  #type: ignore
+        else:
+            self.recurrence_duration = DurationSelector(panel, prefix_text="Every")
 
-        hasRecurrence = bool(self.task.recurrence is not None)
         self.add_recurrence_button.Enable(not hasRecurrence)
         self.delete_recurrence_button.Enable(hasRecurrence)
         self.recurrence_duration.Enable(hasRecurrence)
