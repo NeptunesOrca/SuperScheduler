@@ -115,7 +115,7 @@ def format_recurrence_summary(recurrence: Recurrence | None) -> str:
     
     start_str = recurrence.start.strftime("%b %d, %Y at %H:%M")
     end_str = recurrence.end.strftime("%b %d, %Y at %H:%M")
-    duration_hours = recurrence.duration.total_seconds() / 3600
+    duration_hours = recurrence.getDurationAsDatetime().total_seconds() / 3600  # Convert duration to hours
     
     if duration_hours == int(duration_hours):
         duration_str = f"{int(duration_hours)} hour{'s' if duration_hours != 1 else ''}"
